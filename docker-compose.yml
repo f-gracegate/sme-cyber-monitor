@@ -61,6 +61,7 @@ services:
       - "127.0.0.1:8100:8000"
     volumes:
       - ./backend:/srv
+      - ./agents:/agents:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,5 +102,32 @@ services:
     depends_on:
       - backend
 
+  demo-agent:
+    # Try endpoint monitoring without installing anything on your computer:
+    #   SMECM_TOKEN=enr_... docker compose --profile demo up demo-agent
+    image: python:3.13-slim
+    profiles: ["demo"]
+    hostname: demo-linux-01
+    environment:
+      SMECM_TOKEN: ${SMECM_TOKEN:-}
+      SMECM_CONFIG: /state/agent.json
+      SMECM_HEARTBEAT: "60"
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./agents/endpoint:/agent:ro
+      - demo-agent-state:/state
+    command:
+      - sh
+      - -c
+      - >-
+        test -f /state/agent.json ||
+        python /agent/smecm_agent.py enrol --server http://backend:8000
+        --token "$$SMECM_TOKEN" --allow-insecure-http &&
+        exec python /agent/smecm_agent.py run
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   pgdata:
+  demo-agent-state:

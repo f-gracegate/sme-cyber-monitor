@@ -50,7 +50,7 @@ export function View() {
     <>
       <PageHeader
         title="Monitoring"
-        description="Scheduled checks on your authorised websites and domains. Endpoint and network monitoring are added in later phases."
+        description="Every check on your assets: scheduled checks on websites and domains, and device health reported by monitoring agents. Network monitoring follows in Phase 4."
       />
 
       {s && (
@@ -58,7 +58,7 @@ export function View() {
           <StatCard
             label="Monitored assets"
             value={`${s.monitored_assets} / ${s.monitorable_assets}`}
-            hint="Websites and domains with monitoring data"
+            hint="Assets with current monitoring data"
             icon={<Activity className="size-4" />}
             tone="primary"
           />

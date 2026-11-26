@@ -326,3 +326,69 @@ export type OverviewMonitoring = {
   }[];
   trend: { day: string; score: number }[];
 };
+
+// --- Endpoints (Phase 3) --------------------------------------------------------------------
+
+export type Endpoint = {
+  id: string;
+  source: "smecm_agent" | "wazuh";
+  hostname: string;
+  os_family: string | null;
+  os_name: string | null;
+  os_version: string | null;
+  agent_version: string | null;
+  status: "active" | "revoked";
+  online: boolean;
+  last_seen_at: string | null;
+  last_ip: string | null;
+  enrolled_at: string;
+  inventory: Record<string, unknown>;
+  asset: { id: string; name: string; type: string; department_name: string | null; criticality: string };
+  open_alerts: number;
+  open_findings: number;
+  events_24h: number;
+};
+
+export type EndpointSummary = {
+  total: number;
+  online: number;
+  offline: number;
+  with_issues: number;
+  events_24h: number;
+};
+
+export type SecurityEvent = {
+  id: string;
+  asset_id: string;
+  agent_id: string;
+  event_type: string;
+  severity: Severity;
+  summary: string;
+  occurred_at: string;
+  received_at: string;
+  data: Record<string, unknown>;
+  asset_name: string | null;
+};
+
+export type EnrolmentToken = {
+  id: string;
+  token_hint: string;
+  label: string | null;
+  asset_type: string;
+  department_id: string | null;
+  max_uses: number;
+  uses: number;
+  created_at: string;
+  expires_at: string;
+};
+
+export type IntegrationKey = {
+  id: string;
+  kind: string;
+  name: string;
+  key_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+};
+
+export type AgentRelease = { version: string; filename: string; sha256: string; size_bytes: number };

@@ -7,12 +7,17 @@ A multi-tenant SaaS platform that helps a small or medium business see what it n
 prove it is authorised to monitor it, detect problems and coordinate the response, without
 running its own security operations centre.
 
-> **Status: Phase 2 (external asset monitoring) complete.** On top of the Milestone 1 foundation
-> (accounts, MFA, organisations, tenant isolation, roles, team, asset inventory with ownership
-> verification, audit history, plans), authorised websites and domains are now monitored for
-> uptime, TLS certificates, security headers, DNS and email security. Results become plain-English
-> findings, deduplicated alerts, in-app and email notifications, and a posture score with a daily
-> trend. Endpoint and network monitoring, incidents, reports and the mobile app follow (see
+> **Status: Phase 3 (endpoint and server monitoring) complete.** The platform covers:
+> - **Foundation (Milestone 1):** accounts, MFA, organisations, tenant isolation, roles and team
+>   management, an asset inventory with ownership checks, audit history and plans.
+> - **Websites and domains (Phase 2):** uptime, TLS, security headers, DNS and email-security
+>   checks.
+> - **Endpoints and servers (Phase 3):** computers and servers report through the reference
+>   agent or a Wazuh connector. This covers enrolment, health findings, sign-in and malware
+>   detections, offline alerts and a security event log
+>   ([docs/endpoints.md](docs/endpoints.md)).
+>
+> Network monitoring, incidents, reports and the mobile app come next (see
 > [docs/roadmap.md](docs/roadmap.md)).
 
 ## Quick start
@@ -48,6 +53,9 @@ docker compose down -v && docker compose up --build
 
 ## Tests and checks
 
+To try endpoint monitoring, create a token under **Endpoints → Add devices** and start a
+disposable Linux device: `SMECM_TOKEN=enr_... docker compose --profile demo up -d demo-agent`.
+
 The `monitor` service is the worker that runs scheduled checks. Run more than one with
 `docker compose up --scale monitor=2`; they share work safely.
 
@@ -57,16 +65,19 @@ docker compose run --rm backend ruff check .
 cd apps/web && npm ci && npm run lint && npx next build
 ```
 
-The backend suite (72 tests) includes the release-blocking security scenarios: cross-tenant
+The backend suite (106 tests) includes the release-blocking security scenarios: cross-tenant
 access, database-level Row-Level Security, forged organisation headers, privilege escalation,
 revoked members, refresh-token reuse, MFA replay, SSRF protection (including via redirects), and
 the finding/alert lifecycle: deduplication, auto-resolution, and the rule that missing data never
-clears a finding.
+clears a finding, plus agent enrolment, forged organisation IDs, expired tokens, malformed
+telemetry, brute-force detection and the Wazuh connector.
 
 ## Repository layout
 
 ```
 apps/web/           Next.js 16 + TypeScript web application
+agents/endpoint/    Reference endpoint agent (single Python file, standard library only)
+agents/wazuh/       Wazuh manager integration script
 backend/            FastAPI service, SQLAlchemy models, Alembic migrations, tests
 infrastructure/     Database bootstrap (least-privilege roles)
 docs/               PRD, architecture, database, API, threat model, deployment, roadmap

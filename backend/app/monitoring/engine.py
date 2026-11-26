@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.db import SessionLocal
+from app.core.db import SessionLocal, system_context
 from app.models import (
     Alert,
     Asset,
@@ -43,6 +43,8 @@ DEFAULT_CHECKS: dict[str, list[tuple[str, int]]] = {
     "domain": [("dns", 60), ("email_security", 720)],
 }
 ALLOWED_INTERVALS = (5, 15, 30, 60, 180, 360, 720, 1440)
+# Checks fed by agents rather than run by the scheduler.
+AGENT_CHECK_TYPES = ("endpoint_health", "agent_heartbeat")
 RUNNABLE_ASSET_STATES = ("authorised", "monitoring", "degraded")
 
 
@@ -152,18 +154,22 @@ def _raise_alert(db: Session, finding: Finding, asset: Asset, now: datetime) -> 
     body = f"{asset.name} ({asset.identifier}): {finding.description}"
     for user, in_app, email in _recipients(db, finding.organisation_id, finding.severity):
         if in_app:
-            db.add(
-                Notification(
-                    organisation_id=finding.organisation_id,
-                    user_id=user.id,
-                    alert_id=alert.id,
-                    severity=finding.severity,
-                    title=finding.title,
-                    body=body[:1000],
-                    link=link,
-                    emailed=email,
+            # Notifications are private to their recipient under Row-Level Security. Fanning
+            # them out to the team is trusted engine work, so write them in system context.
+            with system_context(db):
+                db.add(
+                    Notification(
+                        organisation_id=finding.organisation_id,
+                        user_id=user.id,
+                        alert_id=alert.id,
+                        severity=finding.severity,
+                        title=finding.title,
+                        body=body[:1000],
+                        link=link,
+                        emailed=email,
+                    )
                 )
-            )
+                db.flush()
         if email:
             emails.append(
                 EmailJob(
@@ -174,6 +180,93 @@ def _raise_alert(db: Session, finding: Finding, asset: Asset, now: datetime) -> 
                     "You can change which alerts you receive by email in Settings → Notifications.",
                 )
             )
+    return emails
+
+
+def apply_issues(
+    db: Session,
+    asset: Asset,
+    check_type: str,
+    issues: list[checks.Issue],
+    *,
+    evaluated: bool,
+    now: datetime,
+) -> list[EmailJob]:
+    """Open, update or (when ``evaluated``) clear findings for one source of evidence.
+
+    Used by scheduled checks, agent heartbeats and event detections alike, so every finding goes
+    through the same deduplication, alerting and auto-resolution rules.
+    """
+    emails: list[EmailJob] = []
+    seen: set[str] = set()
+    for issue in issues:
+        rule = RULES[issue.rule_key]
+        seen.add(rule.key)
+        finding = db.scalar(
+            select(Finding).where(Finding.asset_id == asset.id, Finding.rule_key == rule.key)
+        )
+        should_alert = False
+        if finding is None:
+            finding = Finding(
+                organisation_id=asset.organisation_id,
+                asset_id=asset.id,
+                check_type=rule.check_type,
+                rule_key=rule.key,
+                title=rule.title,
+                description=rule.description,
+                impact=rule.impact,
+                recommendation=rule.recommendation,
+                severity=rule.severity,
+                score=SEVERITY_SCORE[rule.severity],
+                status="open",
+                evidence=issue.evidence,
+                first_seen_at=now,
+                last_seen_at=now,
+            )
+            db.add(finding)
+            db.flush()
+            should_alert = True
+        else:
+            finding.last_seen_at = now
+            finding.occurrences += 1
+            finding.evidence = issue.evidence
+            if finding.status == "resolved":
+                finding.status = "open"
+                finding.resolved_at = finding.resolved_by = finding.resolution_note = None
+                should_alert = True
+        if finding.status != "open":
+            continue  # accepted risk: keep tracking, don't alert
+        alert = db.scalar(
+            select(Alert).where(Alert.finding_id == finding.id, Alert.status != "resolved")
+        )
+        if alert is not None:
+            alert.occurrences += 1
+            alert.last_seen_at = now
+        elif should_alert and rule.severity != "informational":
+            emails += _raise_alert(db, finding, asset, now)
+
+    if evaluated:
+        stale = rules_for(check_type) - seen
+        for finding in db.scalars(
+            select(Finding).where(
+                Finding.asset_id == asset.id,
+                Finding.rule_key.in_(stale),
+                Finding.status.in_(("open", "accepted_risk")),
+            )
+        ):
+            if RULES[finding.rule_key].sticky:
+                continue
+            finding.status = "resolved"
+            finding.resolved_at = now
+            finding.resolved_by = None
+            finding.resolution_note = "Automatically resolved: no longer detected."
+            for alert in db.scalars(
+                select(Alert).where(Alert.finding_id == finding.id, Alert.status != "resolved")
+            ):
+                alert.status = "resolved"
+                alert.resolved_at = now
+                alert.resolution_note = "Automatically resolved: the condition cleared."
+
     return emails
 
 
@@ -215,82 +308,16 @@ def apply_outcome(
     if outcome.status in {"ok", "warning"}:
         asset.last_successful_check_at = completed
 
-    seen: set[str] = set()
-    for issue in outcome.issues:
-        rule = RULES[issue.rule_key]
-        seen.add(rule.key)
-        finding = db.scalar(
-            select(Finding).where(Finding.asset_id == asset.id, Finding.rule_key == rule.key)
-        )
-        should_alert = False
-        if finding is None:
-            finding = Finding(
-                organisation_id=asset.organisation_id,
-                asset_id=asset.id,
-                check_type=rule.check_type,
-                rule_key=rule.key,
-                title=rule.title,
-                description=rule.description,
-                impact=rule.impact,
-                recommendation=rule.recommendation,
-                severity=rule.severity,
-                score=SEVERITY_SCORE[rule.severity],
-                status="open",
-                evidence=issue.evidence,
-                first_seen_at=completed,
-                last_seen_at=completed,
-            )
-            db.add(finding)
-            db.flush()
-            should_alert = True
-        else:
-            finding.last_seen_at = completed
-            finding.occurrences += 1
-            finding.evidence = issue.evidence
-            if finding.status == "resolved":
-                finding.status = "open"
-                finding.resolved_at = finding.resolved_by = finding.resolution_note = None
-                should_alert = True
-        if finding.status != "open":
-            continue  # accepted risk: keep tracking, don't alert
-        alert = db.scalar(
-            select(Alert).where(Alert.finding_id == finding.id, Alert.status != "resolved")
-        )
-        if alert is not None:
-            alert.occurrences += 1
-            alert.last_seen_at = completed
-        elif should_alert and rule.severity != "informational":
-            emails += _raise_alert(db, finding, asset, completed)
-
-    if outcome.evaluated:
-        stale = rules_for(check.check_type) - seen
-        for finding in db.scalars(
-            select(Finding).where(
-                Finding.asset_id == asset.id,
-                Finding.rule_key.in_(stale),
-                Finding.status.in_(("open", "accepted_risk")),
-            )
-        ):
-            if RULES[finding.rule_key].sticky:
-                continue
-            finding.status = "resolved"
-            finding.resolved_at = completed
-            finding.resolved_by = None
-            finding.resolution_note = "Automatically resolved: no longer detected."
-            for alert in db.scalars(
-                select(Alert).where(Alert.finding_id == finding.id, Alert.status != "resolved")
-            ):
-                alert.status = "resolved"
-                alert.resolved_at = completed
-                alert.resolution_note = "Automatically resolved: the condition cleared."
-
+    emails += apply_issues(
+        db, asset, check.check_type, outcome.issues, evaluated=outcome.evaluated, now=completed
+    )
     db.flush()
-    _refresh_asset(db, asset)
+    refresh_asset(db, asset)
     record_snapshot(db, asset.organisation_id)
     return emails
 
 
-def _refresh_asset(db: Session, asset: Asset) -> None:
+def refresh_asset(db: Session, asset: Asset) -> None:
     if asset.monitoring_status in RUNNABLE_ASSET_STATES:
         statuses = set(
             db.scalars(

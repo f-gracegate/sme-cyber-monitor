@@ -10,10 +10,11 @@ const SECTIONS = [
   { href: "/settings/security", label: "Security & MFA" },
   { href: "/settings/notifications", label: "Notifications", permission: "org:read" },
   { href: "/settings/departments", label: "Departments", permission: "org:read" },
+  { href: "/settings/integrations", label: "Integrations", permission: "org:update" },
   { href: "/settings/subscription", label: "Subscription", permission: "billing:read" },
   { href: "/settings/audit", label: "Audit history", permission: "audit:read" },
 ];
-const LATER = ["Integrations"];
+const LATER: string[] = [];
 
 export default function SettingsLayout({ children }: LayoutProps<"/settings">) {
   const pathname = usePathname();

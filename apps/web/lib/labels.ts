@@ -69,6 +69,7 @@ export const VERIFICATION_METHODS: Record<string, string> = {
   dns_txt: "DNS TXT record",
   http_file: "Verification file on website",
   attestation: "Administrator confirmation",
+  agent: "Monitoring agent installed on the device",
 };
 
 export const INDUSTRIES = [
@@ -154,6 +155,34 @@ export const CHECK_TYPES: Record<string, { label: string; description: string }>
     label: "Email security",
     description: "SPF and DMARC protection against email spoofing.",
   },
+  agent_heartbeat: {
+    label: "Agent connection",
+    description: "Is the device's monitoring agent checking in?",
+  },
+  endpoint_health: {
+    label: "Device health",
+    description: "Antivirus, firewall, encryption, updates and disk space.",
+  },
+};
+
+export const AGENT_CHECK_TYPES = new Set(["agent_heartbeat", "endpoint_health"]);
+
+export const EVENT_TYPES: Record<string, string> = {
+  "authentication.failure": "Failed sign-in",
+  "authentication.success": "Successful sign-in",
+  "malware.detected": "Malware detected",
+  "protection.disabled": "Protection disabled",
+  "account.privileged_created": "Admin account change",
+  "log.cleared": "Log cleared",
+  "process.suspicious": "Suspicious process",
+  "removable_media.connected": "Removable storage",
+  "file_integrity.changed": "File changed",
+  generic: "Other event",
+};
+
+export const AGENT_SOURCE: Record<string, string> = {
+  smecm_agent: "SMECM agent",
+  wazuh: "Wazuh",
 };
 
 export const checkTypeLabel = (t: string) => CHECK_TYPES[t]?.label ?? t;
@@ -206,4 +235,10 @@ Object.assign(AUDIT_ACTIONS, {
   "monitoring.check_updated": "Monitoring check changed",
   "finding.updated": "Finding status changed",
   "alert.updated": "Alert status changed",
+  "endpoint.enrolled": "Device enrolled",
+  "endpoint.revoked": "Device agent revoked",
+  "endpoint.token_created": "Enrolment token created",
+  "endpoint.token_revoked": "Enrolment token revoked",
+  "integration.key_created": "Integration key created",
+  "integration.key_revoked": "Integration key revoked",
 });

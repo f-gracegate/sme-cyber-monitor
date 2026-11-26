@@ -50,9 +50,12 @@ import {
   assetTypeLabel,
   auditLabel,
   categoryLabel,
+  AGENT_SOURCE,
   checkTypeLabel,
 } from "@/lib/labels";
-import type { AssetDetail, AuditEntry, Check, CheckRun, Finding, Page } from "@/lib/types";
+import type { AssetDetail, AuditEntry, Check, CheckRun, Endpoint, Finding, Page } from "@/lib/types";
+import { EventsList } from "@/components/events-list";
+import { OnlineBadge } from "@/components/endpoint-ui";
 import { FindingList } from "@/components/finding-list";
 
 const TABS = [
@@ -275,6 +278,37 @@ function VerificationCard({ asset }: { asset: AssetDetail }) {
           </Dialog>
         </>
       )}
+    </Card>
+  );
+}
+
+function AgentCard({ assetId }: { assetId: string }) {
+  const { data } = useQuery({
+    queryKey: useOrgKey("endpoints", "asset", assetId),
+    queryFn: () => api<Endpoint[]>("/endpoints", { query: { asset_id: assetId, include_revoked: true } }),
+  });
+  const ep = data?.[0];
+  if (!ep) return null;
+  const inv = ep.inventory as Record<string, unknown>;
+  const yesNo = (v: unknown, yes: string, no: string) =>
+    v === true ? yes : v === false ? no : "Unknown";
+  return (
+    <Card>
+      <CardHeader
+        title="Monitoring agent"
+        description={`${AGENT_SOURCE[ep.source]}${ep.agent_version && ep.source === "smecm_agent" ? ` v${ep.agent_version}` : ""} · enrolled ${formatDateTime(ep.enrolled_at)}`}
+        action={<OnlineBadge endpoint={ep} />}
+      />
+      <dl className="grid gap-5 sm:grid-cols-3 lg:grid-cols-6">
+        <Detail label="Last heartbeat">{timeAgo(ep.last_seen_at)}</Detail>
+        <Detail label="IP address">{ep.last_ip ?? "—"}</Detail>
+        <Detail label="Firewall">{yesNo(inv.firewall_enabled, "On", "Off")}</Detail>
+        <Detail label="Antivirus">{yesNo(inv.antivirus_enabled, "On", "Off")}</Detail>
+        <Detail label="Disk encryption">{yesNo(inv.disk_encrypted, "On", "Off")}</Detail>
+        <Detail label="Disk used">
+          {typeof inv.disk_used_percent === "number" ? `${inv.disk_used_percent}%` : "—"}
+        </Detail>
+      </dl>
     </Card>
   );
 }
@@ -595,18 +629,17 @@ export function AssetDetailView() {
             </dl>
           </Card>
           <VerificationCard asset={asset} />
+          <div className="xl:col-span-2">
+            <AgentCard assetId={asset.id} />
+          </div>
         </div>
       )}
 
       {tab === "monitoring" && <MonitoringHistoryTab asset={asset} />}
       {tab === "findings" && <FindingsTab assetId={asset.id} />}
       {tab === "events" && (
-        <Card>
-          <EmptyState
-            icon={<Activity className="size-5" />}
-            title="No security events"
-            description="Login attempts, process alerts and network events from endpoint agents and network collectors will appear here once those are connected (Phases 3 and 4)."
-          />
+        <Card padded={false}>
+          <EventsList assetId={asset.id} />
         </Card>
       )}
       {tab === "configuration" && <ConfigurationTab asset={asset} />}

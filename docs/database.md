@@ -26,15 +26,19 @@ the owner role; the application uses the least-privileged `smecm_app` role
 | `notifications` | Per-user in-app notifications | ✅ | ✅ (user + org) |
 | `notification_preferences` | Per-user email and in-app severity thresholds | ✅ | ✅ |
 | `risk_score_history` | Daily posture score per organisation | ✅ | ✅ |
+| `agent_enrolment_tokens` | Hashed, expiring, limited-use device enrolment tokens | ✅ | ✅ |
+| `agents` | One monitoring agent per device (reference agent or Wazuh), hashed credential, latest inventory | ✅ | ✅ |
+| `security_events` | Normalised endpoint events, idempotent per agent, kept 30 days | ✅ | ✅ |
+| `integration_keys` | Hashed organisation keys for connected tools (Wazuh) | ✅ | ✅ |
 
 `audit_logs` grants the application `INSERT` and `SELECT` only. `UPDATE`, `DELETE` and `TRUNCATE`
 are revoked, and a test asserts it.
 
 ## Planned (later phases)
 
-`agents`, `agent_enrolment_tokens`, `collectors`, `monitoring_profiles`, `incidents`,
+`collectors`, `monitoring_profiles`, `incidents`,
 `incident_events`, `remediation_tasks`, `reports`, `usage_records`, `detection_rules`,
-`event_envelopes`, `event_sources`, `api_keys`, `integration_connections`, `alert_rules`,
+`event_envelopes`, `event_sources`, `api_keys`, `alert_rules`,
 `data_retention_policies`, `asset_discovery_jobs`.
 
 High-volume raw telemetry will go to an indexed event store (OpenSearch evaluation), not

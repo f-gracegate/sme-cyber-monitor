@@ -10,7 +10,7 @@ import { useOrgKey, useSession } from "@/components/session";
 import { Button, Select, Table, Td, Th } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
-import { CHECK_TYPES, INTERVALS } from "@/lib/labels";
+import { AGENT_CHECK_TYPES, CHECK_TYPES, INTERVALS } from "@/lib/labels";
 import type { Check } from "@/lib/types";
 
 export function CheckRow({ check, showAsset = true }: { check: Check; showAsset?: boolean }) {
@@ -18,7 +18,8 @@ export function CheckRow({ check, showAsset = true }: { check: Check; showAsset?
   const toast = useToast();
   const queryClient = useQueryClient();
   const orgKey = useOrgKey();
-  const manage = can("monitoring:manage");
+  const agentDriven = AGENT_CHECK_TYPES.has(check.check_type);
+  const manage = can("monitoring:manage") && !agentDriven;
 
   const update = useMutation({
     mutationFn: (body: Partial<Pick<Check, "enabled" | "interval_minutes">>) =>
@@ -65,7 +66,9 @@ export function CheckRow({ check, showAsset = true }: { check: Check; showAsset?
       </Td>
       <Td className="whitespace-nowrap text-muted">{timeAgo(check.last_run_at)}</Td>
       <Td>
-        {manage ? (
+        {agentDriven ? (
+          <span className="text-sm text-muted">Reported by agent</span>
+        ) : manage ? (
           <Select
             aria-label="Frequency"
             value={check.interval_minutes}
@@ -84,6 +87,7 @@ export function CheckRow({ check, showAsset = true }: { check: Check; showAsset?
           </span>
         )}
       </Td>
+      {can("monitoring:manage") && !manage && <Td />}
       {manage && (
         <Td className="text-right whitespace-nowrap">
           <Button

@@ -21,6 +21,7 @@ import {
   X,
   Building2,
   Inbox,
+  Laptop,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,6 +41,7 @@ const NAV: { title?: string; items: NavItem[] }[] = [
     items: [
       { href: "/overview", label: "Overview", icon: LayoutDashboard },
       { href: "/assets", label: "Assets", icon: Server, permission: "assets:read" },
+      { href: "/endpoints", label: "Endpoints", icon: Laptop, permission: "monitoring:read" },
       { href: "/monitoring", label: "Monitoring", icon: Activity, permission: "monitoring:read" },
     ],
   },

@@ -18,8 +18,10 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import delete, text
 
 from app.core.db import SessionLocal
-from app.models import CheckRun
+from app.endpoints.service import EVENT_RETENTION_DAYS, sweep_offline
+from app.models import CheckRun, SecurityEvent
 from app.monitoring.engine import execute_check
+from app.services.email import send_email
 
 log = logging.getLogger("app.workers.monitor")
 
@@ -36,6 +38,7 @@ _CLAIM = text("""
           FROM monitoring_checks mc
           JOIN assets a ON a.id = mc.asset_id
          WHERE mc.enabled
+           AND mc.check_type NOT IN ('endpoint_health', 'agent_heartbeat')
            AND mc.next_run_at <= now()
            AND a.status = 'active'
            AND a.monitoring_status IN ('authorised', 'monitoring', 'degraded')
@@ -63,10 +66,28 @@ def prune_old_runs() -> int:
     try:
         cutoff = datetime.now(UTC) - timedelta(days=RUN_RETENTION_DAYS)
         deleted = db.execute(delete(CheckRun).where(CheckRun.completed_at < cutoff)).rowcount
+        event_cutoff = datetime.now(UTC) - timedelta(days=EVENT_RETENTION_DAYS)
+        deleted += db.execute(
+            delete(SecurityEvent).where(SecurityEvent.received_at < event_cutoff)
+        ).rowcount
         db.commit()
         return deleted or 0
     finally:
         db.close()
+
+
+def check_offline_agents() -> int:
+    """Flag devices whose agent stopped sending heartbeats."""
+    db = SessionLocal()
+    db.info["rls"] = {"bypass": True}
+    try:
+        emails = sweep_offline(db)
+        db.commit()
+    finally:
+        db.close()
+    for job in emails:
+        send_email(job.to, job.subject, job.body)
+    return len(emails)
 
 
 def main() -> None:
@@ -78,6 +99,7 @@ def main() -> None:
 
     log.info("monitoring worker started (concurrency=%s)", CONCURRENCY)
     last_prune = 0.0
+    last_sweep = 0.0
     with ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
         while not stop.is_set():
             try:
@@ -85,6 +107,9 @@ def main() -> None:
                 if ids:
                     log.info("running %d check(s)", len(ids))
                     list(pool.map(execute_check, ids))
+                if time.monotonic() - last_sweep > 60:
+                    check_offline_agents()
+                    last_sweep = time.monotonic()
                 if time.monotonic() - last_prune > 3600:
                     pruned = prune_old_runs()
                     if pruned:

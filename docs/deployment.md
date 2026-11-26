@@ -16,6 +16,7 @@ environment.
 | `SEED_ADMIN_PASSWORD` | Strong value from the secret store. The seed refuses weak passwords outside development, and the admin must change it at first sign-in. |
 | `FORWARDED_ALLOW_IPS` | Only the reverse proxy / load balancer address(es) |
 | `WEB_BASE_URL` | Public HTTPS URL of the web app (used in emails) |
+| `AGENT_DIST_PATH` | Path to `smecm_agent.py` inside the backend container (copy `agents/` into the image) |
 
 API docs (`/api/docs`) and the developer mailbox are disabled outside development.
 

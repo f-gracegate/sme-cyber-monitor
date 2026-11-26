@@ -33,6 +33,7 @@ jobs:
       TEST_DATABASE_URL: postgresql+psycopg://smecm_app:smecm_app_dev@localhost:5432/smecm_test
       TEST_MIGRATION_DATABASE_URL: postgresql+psycopg://smecm_owner:smecm_owner_dev@localhost:5432/smecm_test
       TEST_REDIS_URL: redis://localhost:6379/1
+      AGENT_DIST_PATH: ${{ github.workspace }}/agents/endpoint/smecm_agent.py
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

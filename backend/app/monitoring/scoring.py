@@ -15,7 +15,7 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.models import Asset, Finding, MonitoringCheck, RiskScoreSnapshot
+from app.models import Agent, Asset, Finding, MonitoringCheck, RiskScoreSnapshot
 
 PENALTY = {"critical": 30, "high": 15, "medium": 6, "low": 2, "informational": 0}
 MONITORABLE_TYPES = ("website", "domain")
@@ -72,6 +72,20 @@ def compute_posture(db: Session, org_id: uuid.UUID) -> dict[str, Any]:
     )
     monitorable = (
         db.scalar(select(func.count()).where(active_asset, Asset.type.in_(MONITORABLE_TYPES))) or 0
+    )
+    # Devices become monitorable once an agent is installed on them.
+    monitorable += (
+        db.scalar(
+            select(func.count(distinct(Agent.asset_id)))
+            .join(Asset, Asset.id == Agent.asset_id)
+            .where(
+                Agent.organisation_id == org_id,
+                Agent.status == "active",
+                active_asset,
+                Asset.type.not_in(MONITORABLE_TYPES),
+            )
+        )
+        or 0
     )
 
     penalty = sum(PENALTY.get(sev, 0) * n for sev, n in counts.items())

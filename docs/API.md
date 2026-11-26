@@ -49,9 +49,19 @@ Interactive OpenAPI docs: `http://localhost:8100/api/docs` (development only).
 | Alerts | PATCH | `/alerts/{id}` (new, acknowledged, investigating, resolved) |
 | Notifications | GET | `/notifications`, `/notifications/preferences` |
 | Notifications | POST, PUT | `/notifications/read`, `/notifications/preferences` |
+| Endpoints | GET | `/endpoints`, `/endpoints/summary`, `/endpoints/events` |
+| Endpoints | POST | `/endpoints/{id}/revoke` |
+| Enrolment | GET, POST | `/endpoints/enrolment-tokens` |
+| Enrolment | DELETE | `/endpoints/enrolment-tokens/{id}` |
+| Integrations | GET, POST | `/integrations/keys` |
+| Integrations | DELETE | `/integrations/keys/{id}` |
+| Agent (device credential) | POST | `/agent/enrol` (token), `/agent/heartbeat`, `/agent/events` |
+| Agent (public) | GET | `/agent/release`, `/agent/download`, `/agent/wazuh-integration` |
+| Wazuh (integration key) | POST | `/integrations/wazuh/alerts` |
 | Platform | GET | `/platform/organisations` (platform admins) |
 | Health | GET | `/api/health` |
 
-Agent and collector ingestion endpoints (Phase 3–4) will authenticate with device credentials
-and strict schema validation, not user sessions, and will derive the organisation from the
-enrolled device, never from the payload.
+Agent endpoints authenticate with `Authorization: Agent <agent_id>:<secret>`. The Wazuh
+endpoint uses `Authorization: Bearer smecm_int_…`. Neither uses user sessions. The organisation
+always comes from the enrolled agent or the integration key, never from the payload, and
+unexpected fields are rejected. Network collectors (Phase 4) will follow the same pattern.

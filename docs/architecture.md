@@ -16,6 +16,12 @@ parallel without running a check twice. Network calls happen outside database tr
 Results go through one engine (`app/monitoring/engine.py`): finding upsert, alert deduplication,
 automatic resolution, notifications, asset status and the daily posture snapshot.
 
+Endpoint telemetry (Phase 3) arrives over HTTPS from agents (`/agent/*`, device credentials) or a
+Wazuh manager (`/integrations/wazuh/alerts`, integration key). Heartbeats are evaluated against
+health rules and events against detection rules (`app/endpoints/`). Both feed the same
+`apply_issues` path as scheduled checks. The worker also sweeps for agents that stopped
+reporting. See [endpoints.md](endpoints.md).
+
 - **Same-origin API.** The browser only talks to the Next.js origin; `/api/*` is proxied to
   FastAPI. Session cookies stay first-party, `HttpOnly`, `SameSite=Lax`, and no CORS is needed.
 - **Client-rendered workspace.** Signed-in pages render in the browser after the session is

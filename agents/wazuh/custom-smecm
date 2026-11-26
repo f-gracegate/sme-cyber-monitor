@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""Wazuh integration: forward alerts to SME Cybersecurity Monitoring.
+
+Install on the Wazuh manager:
+    cp custom-smecm /var/ossec/integrations/custom-smecm
+    chown root:wazuh /var/ossec/integrations/custom-smecm
+    chmod 750 /var/ossec/integrations/custom-smecm
+
+Then add to /var/ossec/etc/ossec.conf and restart the manager:
+    <integration>
+      <name>custom-smecm</name>
+      <hook_url>https://YOUR-SERVER/api/v1/integrations/wazuh/alerts</hook_url>
+      <api_key>smecm_int_...</api_key>
+      <level>3</level>
+      <alert_format>json</alert_format>
+    </integration>
+
+Wazuh calls this script with: <alert file> <api key> <hook url>.
+"""
+
+import json
+import sys
+import urllib.request
+
+
+def main() -> int:
+    if len(sys.argv) < 4:
+        print("usage: custom-smecm <alert_file> <api_key> <hook_url>", file=sys.stderr)
+        return 1
+    alert_file, api_key, hook_url = sys.argv[1], sys.argv[2], sys.argv[3]
+    if not hook_url.startswith("https://"):
+        print("refusing to send alerts over plain HTTP", file=sys.stderr)
+        return 1
+    with open(alert_file, encoding="utf-8") as fh:
+        alert = json.load(fh)
+    request = urllib.request.Request(
+        hook_url,
+        data=json.dumps(alert).encode(),
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "wazuh-custom-smecm/1.0",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
+        return 0 if response.status < 300 else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

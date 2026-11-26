@@ -40,6 +40,9 @@ class Settings(BaseSettings):
 
     brand_product_name: str = "SME Cybersecurity Monitoring"
 
+    # Where the reference endpoint agent is served from (mounted from /agents in development).
+    agent_dist_path: str = "/agents/endpoint/smecm_agent.py"
+
     # Lets asset verification reach private addresses. Only for isolated test labs.
     allow_private_verification_targets: bool = False
 

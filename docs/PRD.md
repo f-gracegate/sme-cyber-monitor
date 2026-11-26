@@ -48,9 +48,9 @@ operating processes are independently tested.
 | FR-004 | Register and verify authorised assets | Must | ✅ Milestone 1 |
 | FR-005 | Monitor websites and domain configurations | Must | ✅ Phase 2 |
 | FR-006 | Schedule monitoring checks | Must | ✅ Phase 2 |
-| FR-007 | Install, register and manage endpoint agents | Must | Phase 3 |
-| FR-008 | Collect and normalise endpoint security events | Must | Phase 3 |
-| FR-009 | Register servers and collect security telemetry | Must | Phase 3 |
+| FR-007 | Install, register and manage endpoint agents | Must | ✅ Phase 3 |
+| FR-008 | Collect and normalise endpoint security events | Must | ✅ Phase 3 |
+| FR-009 | Register servers and collect security telemetry | Must | ✅ Phase 3 (health + events) |
 | FR-010 | Receive network telemetry through a collector | Must | Phase 4 |
 | FR-011 | Generate findings from monitoring data | Must | ✅ Phase 2 |
 | FR-012 | Correlate related events into alerts | Must | ✅ Dedup/grouping (Phase 2); cross-event correlation Phase 5 |
@@ -64,7 +64,7 @@ operating processes are independently tested.
 | FR-020 | Provide subscriptions and usage limits | Must | ✅ Limits; payments Phase 6 |
 | FR-021 | Mobile push notifications | Should | Phase 6 |
 | FR-022 | Mobile incident management | Should | Phase 6 |
-| FR-023 | Integrate third-party security tools | Should | Phases 3–4 |
+| FR-023 | Integrate third-party security tools | Should | ✅ Wazuh (Phase 3); more in Phase 4 |
 | FR-024 | Automated containment actions | Later | — |
 | FR-025 | Threat intelligence enrichment | Later | — |
 

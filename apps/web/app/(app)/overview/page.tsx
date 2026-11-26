@@ -32,7 +32,7 @@ import { CATEGORIES, SEVERITIES, SEVERITY_TONE, auditLabel } from "@/lib/labels"
 import { AssetIcon } from "@/components/asset-badges";
 import { SeverityBadge, severityBarClass } from "@/components/monitoring-ui";
 import { TrendChart } from "@/components/trend-chart";
-import type { AuditEntry, Overview, Page } from "@/lib/types";
+import type { AuditEntry, EndpointSummary, Overview, Page } from "@/lib/types";
 
 const SEVERITY_LABEL: Record<string, string> = {
   critical: "Critical",
@@ -174,8 +174,8 @@ function Coverage({ data }: { data: Overview }) {
         ))}
       </ul>
       <p className="mt-4 rounded-lg bg-surface-2 p-3 text-[13px] text-muted">
-        Websites and domains are monitored today. Computers, servers and network devices are
-        covered once endpoint agents (Phase 3) and network collectors (Phase 4) are added.
+        Websites and domains are checked from the cloud; computers and servers are covered once
+        their monitoring agent is installed. Network devices follow with the network collector.
       </p>
     </Card>
   );
@@ -383,6 +383,11 @@ export default function OverviewPage() {
     queryFn: () => api<Overview>("/overview"),
   });
 
+  const { data: endpoints } = useQuery({
+    queryKey: useOrgKey("endpoints", "summary"),
+    queryFn: () => api<EndpointSummary>("/endpoints/summary"),
+    enabled: can("monitoring:read"),
+  });
   const sev = data?.findings_open_by_severity;
   const urgent = sev ? sev.critical + sev.high : 0;
   const totalOpen = sev ? Object.values(sev).reduce((a, b) => a + b, 0) : 0;
@@ -426,7 +431,7 @@ export default function OverviewPage() {
               hint={
                 data.posture_score === null
                   ? "Needs monitoring data"
-                  : `${data.monitored_assets} of ${data.monitorable_assets} websites/domains monitored`
+                  : `${data.monitored_assets} of ${data.monitorable_assets} monitorable assets reporting`
               }
               icon={<Gauge className="size-4" />}
               tone="primary"
@@ -456,13 +461,21 @@ export default function OverviewPage() {
                 tone="high"
               />
             </Link>
-            <StatCard
-              label="Online endpoints"
-              value="—"
-              hint="Endpoint agents arrive in Phase 3"
-              icon={<Laptop className="size-4" />}
-              tone="success"
-            />
+            <Link href="/endpoints" className="block rounded-[var(--radius-card)] focus-visible:outline-2">
+              <StatCard
+                label="Online endpoints"
+                value={endpoints ? `${endpoints.online} / ${endpoints.total}` : "—"}
+                hint={
+                  !endpoints || endpoints.total === 0
+                    ? "No monitoring agents installed yet"
+                    : endpoints.offline
+                      ? `${endpoints.offline} offline: coverage gap`
+                      : "All agents reporting"
+                }
+                icon={<Laptop className="size-4" />}
+                tone="success"
+              />
+            </Link>
           </div>
 
           <p className="-mt-2 text-[13px] text-muted">{data.posture_note}</p>
