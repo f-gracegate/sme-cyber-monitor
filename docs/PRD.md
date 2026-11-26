@@ -53,12 +53,12 @@ operating processes are independently tested.
 | FR-009 | Register servers and collect security telemetry | Must | ✅ Phase 3 (health + events) |
 | FR-010 | Receive network telemetry through a collector | Must | ✅ Phase 4 |
 | FR-011 | Generate findings from monitoring data | Must | ✅ Phase 2 |
-| FR-012 | Correlate related events into alerts | Must | ✅ Dedup/grouping (Phase 2); cross-event correlation Phase 5 |
+| FR-012 | Correlate related events into alerts | Must | ✅ Dedup/grouping (Phase 2); alert-to-incident correlation (Phase 5) |
 | FR-013 | Prioritise risks and display severity | Must | ✅ Phase 2 |
-| FR-014 | Assign remediation tasks | Must | Phase 5 |
-| FR-015 | Record incident investigations | Must | Phase 5 |
+| FR-014 | Assign remediation tasks | Must | ✅ Phase 5 |
+| FR-015 | Record incident investigations | Must | ✅ Phase 5 |
 | FR-016 | Notify authorised users | Must | ✅ In-app + email (Phase 2); push Phase 6 |
-| FR-017 | Generate management reports | Must | Phase 5 |
+| FR-017 | Generate management reports | Must | ✅ Phase 5 (PDF/CSV, monthly executive report) |
 | FR-018 | Maintain searchable audit logs | Must | ✅ Milestone 1 |
 | FR-019 | Provide role-based access control | Must | ✅ Milestone 1 |
 | FR-020 | Provide subscriptions and usage limits | Must | ✅ Limits; payments Phase 6 |

@@ -8,8 +8,8 @@ Estimates are engineering targets, not guaranteed dates. Phases overlap where pr
 | 2. External asset monitoring (wk 5–8) | Scheduler, uptime, DNS, TLS, security headers, email security, findings, alerts, notifications, posture score and trend | ✅ Delivered |
 | 3. Endpoint & server monitoring (wk 9–14) | Wazuh evaluation, agent enrolment, health, event ingestion, detection rules, endpoint screens | ✅ Delivered |
 | 4. Network monitoring (wk 15–19) | Collector, firewall/device logs, Suricata, Zeek evaluation, network dashboards | ✅ Delivered |
-| 5. Incident & risk management (wk 20–22) | Correlation, risk scoring, incidents, remediation, reports | Next |
-| 6. Mobile & commercial (wk 23–26) | Flutter Android/iOS, push notifications, billing (MoMo/card), onboarding | |
+| 5. Incident & risk management (wk 20–22) | Correlation, risk scoring, incidents, remediation, reports | ✅ Delivered |
+| 6. Mobile & commercial (wk 23–26) | Flutter Android/iOS, push notifications, billing (MoMo/card), onboarding | Next |
 | 7. Pilot & hardening (wk 27–36) | Security and performance testing, regulatory readiness, 5–10 pilot customers | |
 
 ## Milestone 1 deliverable
@@ -43,3 +43,19 @@ firewalls and routers, tails Suricata and Zeek output, checks that authorised ne
 are reachable, and forwards filtered, aggregated events over outbound HTTPS. The Network page
 shows collectors, device availability, blocked connections, configuration changes and, only
 when a sensor exists, intrusion and traffic summaries. See [network.md](network.md).
+
+## Phase 5 deliverable
+
+Critical alerts, and three or more high-severity alerts on one asset within 24 hours, open
+incidents automatically. Later alerts on the same asset join the open incident. Responders work
+each incident through open, investigating, contained, resolved and closed. Every incident has
+an append-only timeline, encrypted evidence with SHA-256 integrity checks, affected assets,
+related alerts and containment/recovery tasks. Staff can report suspected incidents and see
+only their own reports.
+
+Findings get remediation tasks with owners and due dates set by severity. A task is verified
+automatically when monitoring confirms the problem is gone. The posture score (model v2)
+combines findings, monitoring coverage, device health, remediation timeliness and open
+incidents, and it reports a confidence level. Seven report types are available as PDF, five
+of them also as CSV. An executive summary is generated and emailed on the 1st of each month.
+See [incidents.md](incidents.md).

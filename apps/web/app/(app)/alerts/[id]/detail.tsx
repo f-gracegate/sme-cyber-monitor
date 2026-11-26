@@ -1,14 +1,16 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CircleCheck, Eye, Search } from "lucide-react";
+import { ArrowLeft, CircleCheck, Eye, Search, Siren } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Dialog } from "@/components/dialog";
 import { FindingExplainer } from "@/components/finding-explainer";
+import { IncidentStatusBadge } from "@/components/incident-ui";
 import { AlertStatusBadge, SeverityBadge } from "@/components/monitoring-ui";
 import { useToast } from "@/components/providers";
+import { ReportIncidentDialog } from "@/components/report-incident-dialog";
 import { useOrgKey, useSession } from "@/components/session";
 import {
   Button,
@@ -33,6 +35,7 @@ export function Detail() {
   const orgKey = useOrgKey();
   const [resolving, setResolving] = useState(false);
   const [note, setNote] = useState("");
+  const [escalating, setEscalating] = useState(false);
 
   const key = [...orgKey, "alert", id];
   const { data: alert, isPending, error } = useQuery({
@@ -75,6 +78,11 @@ export function Detail() {
         title={alert.title}
         actions={
           <>
+            {!alert.incident && can("incidents:manage") && (
+              <Button variant="secondary" onClick={() => setEscalating(true)}>
+                <Siren className="size-4" /> Open incident
+              </Button>
+            )}
             <ButtonLink href={`/findings/${alert.finding_id}`} variant="secondary">
               <Search className="size-4" /> Finding
             </ButtonLink>
@@ -103,6 +111,27 @@ export function Detail() {
         {alert.occurrences > 1 && <span>· seen {alert.occurrences} times</span>}
         {alert.acknowledged_by_name && <span>· acknowledged by {alert.acknowledged_by_name}</span>}
       </div>
+      {alert.incident && (
+        <div className="mb-5">
+          <Callout
+            tone="primary"
+            icon={<Siren className="size-4" />}
+            title={
+              <span className="inline-flex flex-wrap items-center gap-2">
+                Part of {alert.incident.reference}: {alert.incident.title}
+                <IncidentStatusBadge status={alert.incident.status} />
+              </span>
+            }
+            action={
+              <ButtonLink href={`/incidents/${alert.incident.id}`} size="sm" variant="secondary">
+                Open incident
+              </ButtonLink>
+            }
+          >
+            The response to this alert is being coordinated in the incident.
+          </Callout>
+        </div>
+      )}
       {alert.status === "resolved" && (
         <div className="mb-5">
           <Callout tone="success" title={alert.resolved_by_name ? `Resolved by ${alert.resolved_by_name}` : "Resolved automatically"}>
@@ -112,6 +141,15 @@ export function Detail() {
         </div>
       )}
       <FindingExplainer finding={alert.finding} />
+      {escalating && (
+        <ReportIncidentDialog
+          open
+          onClose={() => setEscalating(false)}
+          alertIds={[alert.id]}
+          assetIds={[alert.asset_id]}
+          defaultTitle={alert.asset ? `${alert.title} on ${alert.asset.name}` : alert.title}
+        />
+      )}
 
       <Dialog
         open={resolving}

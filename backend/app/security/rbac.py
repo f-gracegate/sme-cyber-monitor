@@ -43,6 +43,11 @@ class Perm(StrEnum):
     FINDINGS_MANAGE = "findings:manage"
     ALERTS_READ = "alerts:read"
     ALERTS_MANAGE = "alerts:manage"
+    INCIDENTS_READ = "incidents:read"
+    INCIDENTS_MANAGE = "incidents:manage"
+    INCIDENTS_REPORT = "incidents:report"
+    REMEDIATION_READ = "remediation:read"
+    REMEDIATION_MANAGE = "remediation:manage"
 
 
 _ALL = frozenset(Perm)
@@ -61,6 +66,11 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
             Perm.FINDINGS_MANAGE,
             Perm.ALERTS_READ,
             Perm.ALERTS_MANAGE,
+            Perm.INCIDENTS_READ,
+            Perm.INCIDENTS_MANAGE,
+            Perm.INCIDENTS_REPORT,
+            Perm.REMEDIATION_READ,
+            Perm.REMEDIATION_MANAGE,
         }
     ),
     Role.IT_ADMIN: frozenset(
@@ -77,6 +87,11 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
             Perm.FINDINGS_MANAGE,
             Perm.ALERTS_READ,
             Perm.ALERTS_MANAGE,
+            Perm.INCIDENTS_READ,
+            Perm.INCIDENTS_MANAGE,
+            Perm.INCIDENTS_REPORT,
+            Perm.REMEDIATION_READ,
+            Perm.REMEDIATION_MANAGE,
         }
     ),
     Role.AUDITOR: frozenset(
@@ -90,9 +105,12 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
             Perm.MONITORING_READ,
             Perm.FINDINGS_READ,
             Perm.ALERTS_READ,
+            Perm.INCIDENTS_READ,
+            Perm.INCIDENTS_REPORT,
+            Perm.REMEDIATION_READ,
         }
     ),
-    Role.EMPLOYEE: frozenset({Perm.ORG_READ}),
+    Role.EMPLOYEE: frozenset({Perm.ORG_READ, Perm.INCIDENTS_REPORT}),
     Role.EXECUTIVE: frozenset(
         {
             Perm.ORG_READ,
@@ -101,6 +119,9 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
             Perm.MONITORING_READ,
             Perm.FINDINGS_READ,
             Perm.ALERTS_READ,
+            Perm.INCIDENTS_READ,
+            Perm.INCIDENTS_REPORT,
+            Perm.REMEDIATION_READ,
         }
     ),
 }

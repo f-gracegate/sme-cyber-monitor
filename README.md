@@ -7,7 +7,7 @@ A multi-tenant SaaS platform that helps a small or medium business see what it n
 prove it is authorised to monitor it, detect problems and coordinate the response, without
 running its own security operations centre.
 
-> **Status: Phase 4 (network monitoring) complete.** The platform covers:
+> **Status: Phase 5 (incident and risk management) complete.** The platform covers:
 > - **Foundation (Milestone 1):** accounts, MFA, organisations, tenant isolation, roles and team
 >   management, an asset inventory with ownership checks, audit history and plans.
 > - **Websites and domains (Phase 2):** uptime, TLS, security headers, DNS and email-security
@@ -20,8 +20,13 @@ running its own security operations centre.
 > - **Network (Phase 4):** on-site collectors forward firewall and router logs, Suricata and
 >   Zeek output, and device reachability ([docs/network.md](docs/network.md)).
 >
-> Incidents, reports and the mobile app come next (see
-> [docs/roadmap.md](docs/roadmap.md)).
+> - **Incidents and risk (Phase 5):** alerts are correlated into incidents. Each incident has a
+>   permanent timeline, encrypted evidence, owners and response tasks. Findings get remediation
+>   tasks that monitoring verifies, the posture score shows what drives it, and PDF/CSV reports
+>   (including a monthly executive summary) can be produced
+>   ([docs/incidents.md](docs/incidents.md)).
+>
+> The mobile app and billing come next (see [docs/roadmap.md](docs/roadmap.md)).
 
 ## Quick start
 

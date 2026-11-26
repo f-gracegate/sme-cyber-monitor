@@ -11,12 +11,16 @@ import {
   ScanSearch,
   Server,
   ShieldCheck,
+  Siren,
   TriangleAlert,
 } from "lucide-react";
+import { useState } from "react";
+import { ReportIncidentDialog } from "@/components/report-incident-dialog";
 import Link from "next/link";
 import { useSession, useOrgKey } from "@/components/session";
 import {
   Badge,
+  Button,
   ButtonLink,
   Card,
   CardHeader,
@@ -28,7 +32,7 @@ import {
 } from "@/components/ui";
 import { api } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
-import { CATEGORIES, SEVERITIES, SEVERITY_TONE, auditLabel } from "@/lib/labels";
+import { CATEGORIES, POSTURE_COMPONENTS, SEVERITIES, SEVERITY_TONE, auditLabel } from "@/lib/labels";
 import { AssetIcon } from "@/components/asset-badges";
 import { SeverityBadge, severityBarClass } from "@/components/monitoring-ui";
 import { TrendChart } from "@/components/trend-chart";
@@ -375,8 +379,53 @@ function MostExposed({ data }: { data: Overview }) {
   );
 }
 
+function PostureBreakdown({ data }: { data: Overview }) {
+  const parts = Object.entries(data.posture_components ?? {}).filter(([k]) => POSTURE_COMPONENTS[k]);
+  if (data.posture_score === null || parts.length === 0) return null;
+  const confidence = data.posture_confidence;
+  return (
+    <Card>
+      <CardHeader
+        title="What drives your score"
+        description={
+          confidence >= 80
+            ? "Based on current data from most of your assets."
+            : confidence >= 50
+              ? "Partly estimated: some assets aren't reporting yet."
+              : "Low confidence: connect more assets for an accurate score."
+        }
+        action={<Badge tone={confidence >= 80 ? "success" : confidence >= 50 ? "warning" : "high"}>{confidence}% confidence</Badge>}
+      />
+      <ul className="space-y-3">
+        {parts.map(([key, value]) => (
+          <li key={key}>
+            <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
+              <span className="font-medium text-fg">{POSTURE_COMPONENTS[key].label}</span>
+              <span className={cn("tabular-nums", value === null ? "text-subtle" : scoreTone(value))}>
+                {value === null ? "n/a" : value}
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+              {value !== null && (
+                <div
+                  className={cn("h-full rounded-full", value >= 80 ? "bg-success" : value >= 50 ? "bg-warning" : "bg-critical")}
+                  style={{ width: `${Math.max(2, value)}%` }}
+                />
+              )}
+            </div>
+            <p className="mt-0.5 text-xs text-subtle">
+              {value === null ? "Not enough data yet — left out of the score" : POSTURE_COMPONENTS[key].help}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 export default function OverviewPage() {
   const { can, membership } = useSession();
+  const [reporting, setReporting] = useState(false);
   const key = useOrgKey("overview");
   const { data, isPending } = useQuery({
     queryKey: key,
@@ -399,23 +448,31 @@ export default function OverviewPage() {
         title="Security overview"
         description={membership ? `${membership.organisation_name} · ${membership.role_label}` : undefined}
         actions={
-          can("assets:write") && (
-            <ButtonLink href="/assets?new=1">
-              <Plus className="size-4" /> Add asset
-            </ButtonLink>
-          )
+          <>
+            {can("incidents:report") && !can("incidents:manage") && (
+              <Button variant={can("assets:write") ? "secondary" : "primary"} onClick={() => setReporting(true)}>
+                <Siren className="size-4" /> Report an incident
+              </Button>
+            )}
+            {can("assets:write") && (
+              <ButtonLink href="/assets?new=1">
+                <Plus className="size-4" /> Add asset
+              </ButtonLink>
+            )}
+          </>
         }
       />
+      {reporting && <ReportIncidentDialog open onClose={() => setReporting(false)} />}
 
       {isPending || !data ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             <StatCard
               label="Security posture score"
               value={
@@ -461,6 +518,23 @@ export default function OverviewPage() {
                 tone="high"
               />
             </Link>
+            {can("incidents:read") && (
+              <Link href="/incidents" className="block rounded-[var(--radius-card)] focus-visible:outline-2">
+                <StatCard
+                  label="Open incidents"
+                  value={data.open_incidents}
+                  hint={
+                    data.overdue_tasks
+                      ? `${data.overdue_tasks} overdue remediation task${data.overdue_tasks === 1 ? "" : "s"}`
+                      : data.open_incidents
+                        ? "Being handled by your team"
+                        : "No active incidents"
+                  }
+                  icon={<Siren className="size-4" />}
+                  tone={data.open_incidents ? "critical" : "success"}
+                />
+              </Link>
+            )}
             <Link href="/endpoints" className="block rounded-[var(--radius-card)] focus-visible:outline-2">
               <StatCard
                 label="Online endpoints"
@@ -507,6 +581,7 @@ export default function OverviewPage() {
               </div>
             </div>
             <div className="space-y-6">
+              <PostureBreakdown data={data} />
               <RecentAlerts data={data} />
               <MostExposed data={data} />
               <TeamSecurity data={data} />

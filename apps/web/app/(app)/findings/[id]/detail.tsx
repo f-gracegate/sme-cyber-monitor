@@ -1,12 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Bell, CircleCheck, RotateCcw, ShieldOff } from "lucide-react";
+import { ArrowLeft, Bell, CircleCheck, RotateCcw, ShieldOff, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Dialog } from "@/components/dialog";
 import { FindingExplainer } from "@/components/finding-explainer";
+import { TaskDialog, TaskRow } from "@/components/incident-ui";
 import { FindingStatusBadge, SeverityBadge } from "@/components/monitoring-ui";
 import { useToast } from "@/components/providers";
 import { useOrgKey, useSession } from "@/components/session";
@@ -15,6 +16,7 @@ import {
   ButtonLink,
   Callout,
   Card,
+  CardHeader,
   EmptyState,
   Field,
   PageHeader,
@@ -22,7 +24,7 @@ import {
   Textarea,
 } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
-import type { FindingDetail } from "@/lib/types";
+import type { FindingDetail, Page, Task } from "@/lib/types";
 
 type Action = { status: "resolved" | "accepted_risk"; title: string; description: string };
 
@@ -34,11 +36,20 @@ export function Detail() {
   const orgKey = useOrgKey();
   const [action, setAction] = useState<Action | null>(null);
   const [note, setNote] = useState("");
+  const [assigning, setAssigning] = useState(false);
 
   const key = [...orgKey, "finding", id];
   const { data: finding, isPending, error } = useQuery({
     queryKey: key,
     queryFn: () => api<FindingDetail>(`/findings/${id}`),
+  });
+  const tasks = useQuery({
+    queryKey: [...orgKey, "remediation-tasks", "finding", id],
+    queryFn: () =>
+      api<Page<Task>>("/remediation-tasks", {
+        query: { finding_id: id, status: ["open", "in_progress", "done", "verified", "cancelled"] },
+      }),
+    enabled: can("org:read"),
   });
   const update = useMutation({
     mutationFn: (body: { status: string; note?: string }) =>
@@ -70,6 +81,7 @@ export function Detail() {
   }
 
   const manage = can("findings:manage");
+  const activeTask = tasks.data?.items.some((t) => ["open", "in_progress", "done"].includes(t.status));
   return (
     <>
       <PageHeader
@@ -81,6 +93,11 @@ export function Detail() {
               <ButtonLink href={`/alerts/${finding.open_alert_id}`} variant="secondary">
                 <Bell className="size-4" /> View alert
               </ButtonLink>
+            )}
+            {can("remediation:manage") && finding.status === "open" && !activeTask && (
+              <Button variant="secondary" onClick={() => setAssigning(true)}>
+                <Wrench className="size-4" /> Assign fix
+              </Button>
             )}
             {manage && finding.status === "open" && (
               <>
@@ -136,6 +153,21 @@ export function Detail() {
         </div>
       )}
       <FindingExplainer finding={finding} />
+      {!!tasks.data?.items.length && (
+        <Card padded={false} className="mt-5">
+          <div className="p-5 pb-3">
+            <CardHeader title="Remediation" description="Who is fixing this, and by when." />
+          </div>
+          <ul className="divide-y divide-border border-t border-border">
+            {tasks.data.items.map((t) => (
+              <TaskRow key={t.id} task={t} showContext={false} />
+            ))}
+          </ul>
+        </Card>
+      )}
+      {assigning && (
+        <TaskDialog open findingId={finding.id} onClose={() => setAssigning(false)} />
+      )}
 
       <Dialog
         open={action !== null}

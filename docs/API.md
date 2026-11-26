@@ -61,6 +61,14 @@ Interactive OpenAPI docs: `http://localhost:8100/api/docs` (development only).
 | Network | GET | `/network/summary`, `/network/collectors`, `/network/devices` |
 | Collector (token / credential) | POST | `/collector/enrol`, `/collector/heartbeat`, `/collector/events` |
 | Collector (public) | GET | `/collector/release`, `/collector/download` |
+| Incidents | GET | `/incidents` (status, severity, `q` title or INC number, `mine`), `/incidents/{id}` |
+| Incidents | POST | `/incidents`, `/incidents/{id}/notes`, `/incidents/{id}/assets`, `/incidents/{id}/alerts` |
+| Incidents | PATCH | `/incidents/{id}` (status, owner, severity, category; closing needs `closure_reason`) |
+| Evidence | POST, GET | `/incidents/{id}/evidence` (multipart, 10 MB), `/incidents/{id}/evidence/{evidence_id}` |
+| Remediation | GET | `/remediation-tasks` (status, `mine`, `overdue`, `finding_id`, `incident_id`), `/remediation/summary` |
+| Remediation | POST, PATCH | `/remediation-tasks`, `/remediation-tasks/{id}` |
+| Reports | GET | `/reports/types`, `/reports`, `/reports/{id}/download` |
+| Reports | POST | `/reports` (type, format, period up to one year) |
 | Platform | GET | `/platform/organisations` (platform admins) |
 | Health | GET | `/api/health` |
 

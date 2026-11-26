@@ -4,7 +4,17 @@ import uuid
 from fastapi import FastAPI, Request
 from sqlalchemy import text
 
-from app.api.v1 import assets, auth, endpoints, monitoring, network, organisations, workspace
+from app.api.v1 import (
+    assets,
+    auth,
+    endpoints,
+    incidents,
+    monitoring,
+    network,
+    organisations,
+    reports,
+    workspace,
+)
 from app.core.config import settings
 from app.core.db import engine
 from app.core.errors import register_error_handlers
@@ -45,7 +55,17 @@ async def request_context(request: Request, call_next):
     return response
 
 
-for module in (auth, organisations, assets, monitoring, endpoints, network, workspace):
+for module in (
+    auth,
+    organisations,
+    assets,
+    monitoring,
+    endpoints,
+    network,
+    incidents,
+    reports,
+    workspace,
+):
     app.include_router(module.router, prefix="/api/v1")
 
 

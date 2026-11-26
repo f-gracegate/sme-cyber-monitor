@@ -113,8 +113,16 @@ class AlertOut(ORMModel):
     asset: AssetRef | None = None
 
 
+class IncidentRef(BaseModel):
+    id: uuid.UUID
+    reference: str
+    title: str
+    status: str
+
+
 class AlertDetail(AlertOut):
     finding: FindingOut
+    incident: IncidentRef | None = None
     acknowledged_by_name: str | None = None
     resolved_by_name: str | None = None
 

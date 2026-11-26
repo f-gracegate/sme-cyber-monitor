@@ -70,6 +70,11 @@ class Overview(BaseModel):
     recent_alerts: list["AlertBrief"]
     most_exposed_assets: list["ExposedAsset"]
     trend: list["TrendPoint"]
+    posture_components: dict[str, int | None]
+    posture_confidence: int
+    open_incidents: int
+    overdue_tasks: int
+    neglected_findings: int
 
 
 class AlertBrief(BaseModel):
@@ -326,6 +331,43 @@ def overview(
                 action_href="/monitoring?status=error",
             )
         )
+    if posture["open_incidents"] and ctx.has(Perm.INCIDENTS_READ):
+        n = posture["open_incidents"]
+        recs.append(
+            Recommendation(
+                id="open_incidents",
+                severity="high",
+                title=f"{n} incident(s) still open",
+                description="Work through open incidents until they're contained and resolved.",
+                action_label="View incidents",
+                action_href="/incidents",
+            )
+        )
+    if posture["overdue_tasks"] and ctx.has(Perm.REMEDIATION_READ):
+        n = posture["overdue_tasks"]
+        recs.append(
+            Recommendation(
+                id="overdue_tasks",
+                severity="medium",
+                title=f"{n} security fix(es) overdue",
+                description="Overdue fixes leave known problems open for longer than planned.",
+                action_label="View remediation",
+                action_href="/remediation?overdue=1",
+            )
+        )
+    if posture["neglected_findings"] and ctx.has(Perm.REMEDIATION_MANAGE):
+        n = posture["neglected_findings"]
+        recs.append(
+            Recommendation(
+                id="assign_fixes",
+                severity="high",
+                title=f"{n} urgent finding(s) with nobody assigned",
+                description="Critical and high findings older than three days should have an "
+                "owner and a due date.",
+                action_label="Assign fixes",
+                action_href="/findings?severity=critical&severity=high",
+            )
+        )
     recs.sort(key=lambda r: severity_rank(r.severity), reverse=True)
 
     if posture["score"] is None:
@@ -335,9 +377,9 @@ def overview(
         )
     else:
         note = (
-            f"Based on {posture['monitored_assets']} monitored asset(s). Each open finding "
-            "lowers the score by its severity; assets we can't check are shown as coverage "
-            "gaps, not as good news."
+            f"Based on {posture['monitored_assets']} of {posture['monitorable_assets']} "
+            f"assets ({posture['confidence']}% coverage). Open findings, unmonitored assets, "
+            "open incidents and overdue fixes all lower the score."
         )
 
     return Overview(
@@ -352,6 +394,11 @@ def overview(
         recent_alerts=recent_alerts,
         most_exposed_assets=most_exposed,
         trend=trend,
+        posture_components=posture["components"],
+        posture_confidence=posture["confidence"],
+        open_incidents=posture["open_incidents"],
+        overdue_tasks=posture["overdue_tasks"],
+        neglected_findings=posture["neglected_findings"],
         organisation_name=ctx.organisation.name,
         assets_total=total_assets,
         assets_by_category=by_category,

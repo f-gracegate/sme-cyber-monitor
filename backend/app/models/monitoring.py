@@ -201,6 +201,11 @@ class RiskScoreSnapshot(UUIDPrimaryKey, Base):
     open_medium: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     open_low: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     monitored_assets: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Breakdown of the score (component -> 0..100) and how much of the estate it's based on.
+    components: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
+    confidence: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     # Where the reference endpoint agent is served from (mounted from /agents in development).
     agent_dist_path: str = "/agents/endpoint/smecm_agent.py"
 
+    # Encrypted object storage for evidence and reports. Use a mounted volume or network disk;
+    # replace with an S3-compatible backend for multi-server deployments.
+    storage_dir: str = "/data/objects"
+    max_evidence_bytes: int = 10 * 1024 * 1024
+
     # Lets asset verification reach private addresses. Only for isolated test labs.
     allow_private_verification_targets: bool = False
 

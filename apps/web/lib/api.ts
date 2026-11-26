@@ -53,6 +53,8 @@ export type RequestOptions = {
   org?: boolean;
   /** Skip the silent refresh-and-retry on 401. */
   noRefresh?: boolean;
+  /** Multipart body (file uploads); sent instead of a JSON body. */
+  form?: FormData;
 };
 
 function buildUrl(path: string, query?: Query) {
@@ -89,11 +91,11 @@ async function toError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, "http_error", "Something went wrong. Please try again.");
 }
 
-export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, query, org = true, noRefresh = false } = options;
+async function request(path: string, options: RequestOptions): Promise<Response> {
+  const { method = "GET", body, query, org = true, noRefresh = false, form } = options;
   const send = () => {
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (body !== undefined && !form) headers["Content-Type"] = "application/json";
     const csrf = readCookie("smecm_csrf");
     if (csrf) headers["X-CSRF-Token"] = csrf;
     if (org && activeOrgId) headers["X-Organisation-Id"] = activeOrgId;
@@ -101,7 +103,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       method,
       headers,
       credentials: "same-origin",
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
     });
   };
 
@@ -124,8 +126,29 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     }
     throw err;
   }
+  return res;
+}
+
+export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const res = await request(path, options);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** Download an authenticated file (it needs our headers, so a plain link won't do). */
+export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  const res = await request(path, { method: "GET" });
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const name = match ? decodeURIComponent(match[1]) : fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function errorMessage(error: unknown): string {

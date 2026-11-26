@@ -31,13 +31,21 @@ the owner role; the application uses the least-privileged `smecm_app` role
 | `security_events` | Normalised endpoint events, idempotent per agent, kept 30 days | ✅ | ✅ |
 | `integration_keys` | Hashed organisation keys for connected tools (Wazuh) | ✅ | ✅ |
 
+| `incidents` | Per-organisation numbered incidents (INC-0001), lifecycle timestamps, owner, closure reason | ✅ | ✅ |
+| `incident_assets`, `incident_alerts` | Affected assets and correlated alerts | ✅ | ✅ |
+| `incident_events` | Append-only incident timeline (`UPDATE`/`DELETE` revoked) | ✅ | ✅ |
+| `incident_evidence` | Evidence metadata and SHA-256; the file is Fernet-encrypted in object storage | ✅ | ✅ |
+| `remediation_tasks` | Fix, containment and recovery tasks, owner, due date, verification method | ✅ | ✅ |
+| `reports` | Generated reports (type, period, format); the file is encrypted in object storage | ✅ | ✅ |
+
+`risk_score_snapshots` also stores the score components and a confidence value (migration 0006).
+
 `audit_logs` grants the application `INSERT` and `SELECT` only. `UPDATE`, `DELETE` and `TRUNCATE`
 are revoked, and a test asserts it.
 
 ## Planned (later phases)
 
-`collectors`, `monitoring_profiles`, `incidents`,
-`incident_events`, `remediation_tasks`, `reports`, `usage_records`, `detection_rules`,
+`monitoring_profiles`, `usage_records`, `detection_rules`,
 `event_envelopes`, `event_sources`, `api_keys`, `alert_rules`,
 `data_retention_policies`, `asset_discovery_jobs`.
 

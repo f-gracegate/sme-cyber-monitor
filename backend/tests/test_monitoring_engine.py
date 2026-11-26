@@ -106,7 +106,9 @@ def test_high_severity_alerts_are_emailed(owner, monkeypatch, system_db):
             "warning", "expired", issues=[checks.Issue("tls_certificate_expired")], reachable=True
         ),
     )
-    assert [e.to for e in emails] == ["owner@acme.example.com"]
+    # One email for the alert, one for the incident the critical alert opened.
+    assert [e.to for e in emails] == ["owner@acme.example.com", "owner@acme.example.com"]
+    assert "Incident" in emails[1].subject or "INC-0001" in emails[1].subject
     engine.send_email(emails[0].to, emails[0].subject, emails[0].body)
     assert any("TLS certificate has expired" in m["subject"] for m in read_dev_mailbox())
 
@@ -178,9 +180,13 @@ def test_posture_score_only_exists_with_data(owner, monkeypatch, system_db):
         ),
     )
     data = owner.get("/api/v1/overview").json()
-    assert data["posture_score"] == 85
+    # findings 88, coverage 100, remediation 100, incidents 100, no agents (left out)
+    assert data["posture_score"] == 95
+    assert data["posture_components"]["findings"] == 88
+    assert data["posture_components"]["endpoint_health"] is None
+    assert data["posture_confidence"] == 100
     assert data["findings_open_by_severity"]["high"] == 1
-    assert data["trend"][-1]["score"] == 85
+    assert data["trend"][-1]["score"] == 95
     assert data["most_exposed_assets"][0]["name"] == "Shop"
 
 
@@ -265,7 +271,12 @@ def test_preferences_control_email(owner, monkeypatch, system_db):
         ),
     )
     assert emails == []
-    assert owner.get("/api/v1/notifications").json()["unread"] == 1  # medium filtered out
+    # The critical alert and the incident it opened; the medium alert is filtered out.
+    titles = {n["title"] for n in owner.get("/api/v1/notifications").json()["items"]}
+    assert titles == {
+        "TLS certificate has expired",
+        "New critical incident: TLS certificate has expired on Shop",
+    }
 
 
 def test_worker_claims_only_due_checks_of_authorised_assets(owner, monkeypatch, system_db):

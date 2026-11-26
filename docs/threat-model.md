@@ -17,7 +17,10 @@ target. Status reflects Milestone 1.
 | Open redirect after login | `next` parameter restricted to same-site paths | ✅ |
 | Misleading score from missing data | Findings only clear after a successful run; failed or disabled checks shown as coverage gaps | ✅ |
 | Malicious agent / telemetry poisoning | Per-device hashed credentials, short-lived limited-use enrolment tokens, strict schemas (extra fields rejected), size and rate limits, idempotent events, tenant derived from enrolment | ✅ (signed agent packages before launch) |
-| Alert flooding | One open alert per finding (enforced by a unique index), occurrence counters, auto-resolution; suppression rules Phase 5 | ✅ Partial |
+| Alert flooding | One open alert per finding (enforced by a unique index), occurrence counters, auto-resolution; related alerts grouped into one incident; suppression rules later | ✅ Partial |
+| Malicious evidence upload | Extension allowlist, 10 MB limit, stored encrypted and never rendered: downloads are `application/octet-stream` attachments with `nosniff` and a sandbox CSP | ✅ |
+| Evidence or timeline tampering | SHA-256 recorded at upload and checked on every download; the incident timeline is append-only at the database level | ✅ |
+| Spreadsheet formula injection in CSV reports | Cells starting with `=`, `+`, `-` or `@` are neutralised | ✅ |
 | Credential theft (integrations) | Integration keys and agent credentials stored as hashes, shown once, revocable | ✅ |
 | Supply chain | Locked dependencies, CI checks; image scanning and signed agent packages to add | Partial |
 | Ransomware / data loss | Encrypted, immutable backups with tested restore | Before launch |
@@ -33,7 +36,7 @@ target. Status reflects Milestone 1.
 | 3 | Agent enrols with expired token | `test_endpoints.py::test_tokens_are_single_use_and_expire` |
 | 4 | Monitoring job reaches internal or metadata address | `test_assets.py::test_verification_refuses_internal_addresses`, `test_monitoring_rules.py::test_redirect_to_internal_address_is_refused` |
 | 5 | Malformed telemetry | `test_endpoints.py::test_malformed_telemetry_is_rejected` |
-| 6 | Download another org's report | Phase 5 (same tenant guard) |
+| 6 | Download another org's report | `test_incidents.py::test_reports_are_permissioned_and_isolated`, `test_incidents_are_isolated_between_organisations` (RLS + storage key prefix check) |
 | 7 | Revoked former employee | `test_removed_member_loses_access_immediately`, `test_suspended_member_loses_access` |
 | 8 | Event burst | Phase 3 load tests |
 | 9 | Unauthorised privilege escalation | `test_privilege_escalation_is_refused`, role matrix test |

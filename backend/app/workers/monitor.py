@@ -21,6 +21,7 @@ from app.core.db import SessionLocal
 from app.endpoints.service import EVENT_RETENTION_DAYS, sweep_offline
 from app.models import CheckRun, SecurityEvent
 from app.monitoring.engine import execute_check
+from app.reports.service import generate_monthly_reports
 from app.services.email import send_email
 
 log = logging.getLogger("app.workers.monitor")
@@ -91,6 +92,16 @@ def check_offline_agents() -> int:
     return len(emails)
 
 
+def run_scheduled_reports() -> int:
+    """Monthly executive reports (idempotent, so running it every hour is safe)."""
+    db = SessionLocal()
+    db.info["rls"] = {"bypass": True}
+    try:
+        return generate_monthly_reports(db)
+    finally:
+        db.close()
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)  # per-request lines are noise here
@@ -112,6 +123,9 @@ def main() -> None:
                     check_offline_agents()
                     last_sweep = time.monotonic()
                 if time.monotonic() - last_prune > 3600:
+                    created = run_scheduled_reports()
+                    if created:
+                        log.info("generated %d monthly report(s)", created)
                     pruned = prune_old_runs()
                     if pruned:
                         log.info("pruned %d old check runs", pruned)

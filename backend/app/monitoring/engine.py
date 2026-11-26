@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import SessionLocal, system_context
+from app.incidents.service import cancel_tasks_for_asset, correlate_alert, verify_tasks_for_finding
 from app.models import (
     Alert,
     Asset,
@@ -90,6 +91,7 @@ def resolve_asset_findings(db: Session, asset: Asset, note: str, actor_id=None) 
     )
     for f in findings:
         f.status, f.resolved_at, f.resolved_by, f.resolution_note = "resolved", now, actor_id, note
+    cancel_tasks_for_asset(db, asset.id, note)
     for a in db.scalars(
         select(Alert).where(Alert.asset_id == asset.id, Alert.status != "resolved")
     ):
@@ -185,6 +187,9 @@ def _raise_alert(db: Session, finding: Finding, asset: Asset, now: datetime) -> 
                     "You can change which alerts you receive by email in Settings → Notifications.",
                 )
             )
+    # Correlation: join an open incident on this asset, or open one for critical/burst alerts.
+    for mail in correlate_alert(db, alert, asset):
+        emails.append(EmailJob(mail.to, mail.subject, mail.body))
     return emails
 
 
@@ -265,6 +270,7 @@ def apply_issues(
             finding.resolved_at = now
             finding.resolved_by = None
             finding.resolution_note = "Automatically resolved: no longer detected."
+            verify_tasks_for_finding(db, finding, "monitoring")
             for alert in db.scalars(
                 select(Alert).where(Alert.finding_id == finding.id, Alert.status != "resolved")
             ):

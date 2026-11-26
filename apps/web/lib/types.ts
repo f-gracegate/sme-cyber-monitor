@@ -279,6 +279,7 @@ export type Alert = {
 
 export type AlertDetail = Alert & {
   finding: Finding;
+  incident: { id: string; reference: string; title: string; status: string } | null;
   acknowledged_by_name: string | null;
   resolved_by_name: string | null;
 };
@@ -325,6 +326,11 @@ export type OverviewMonitoring = {
     highest_severity: Severity;
   }[];
   trend: { day: string; score: number }[];
+  posture_components: Record<string, number | null>;
+  posture_confidence: number;
+  open_incidents: number;
+  overdue_tasks: number;
+  neglected_findings: number;
 };
 
 // --- Endpoints (Phase 3) --------------------------------------------------------------------
@@ -449,3 +455,89 @@ export type NetworkSummary = {
   top_signatures: { name: string; count: number; severity: Severity }[];
   traffic: Collector["traffic"];
 };
+
+// --- Incidents, remediation, reports (Phase 5) ---------------------------------------------
+
+export type PersonRef = { id: string; name: string };
+
+export type Incident = {
+  id: string;
+  reference: string;
+  title: string;
+  summary: string;
+  severity: Severity;
+  status: "open" | "investigating" | "contained" | "resolved" | "closed";
+  category: string;
+  source: "manual" | "employee_report" | "correlation";
+  owner: PersonRef | null;
+  reporter: PersonRef | null;
+  created_at: string;
+  updated_at: string;
+  contained_at: string | null;
+  resolved_at: string | null;
+  closed_at: string | null;
+  closure_reason: string | null;
+  resolution_summary: string | null;
+  asset_count: number;
+  alert_count: number;
+  open_tasks: number;
+};
+
+export type Task = {
+  id: string;
+  kind: "remediation" | "containment" | "recovery";
+  title: string;
+  description: string;
+  priority: Severity;
+  status: "open" | "in_progress" | "done" | "verified" | "cancelled";
+  finding_id: string | null;
+  incident_id: string | null;
+  incident_reference: string | null;
+  asset_id: string | null;
+  asset_name: string | null;
+  assignee: PersonRef | null;
+  due_at: string | null;
+  completed_at: string | null;
+  verified_at: string | null;
+  verification: string | null;
+  note: string | null;
+  created_at: string;
+  overdue: boolean;
+};
+
+export type IncidentDetail = Incident & {
+  assets: { id: string; name: string; identifier: string; type: string; criticality: string }[];
+  alerts: { id: string; title: string; severity: Severity; status: string; asset_name: string; first_seen_at: string }[];
+  timeline: { id: string; event_type: string; actor_label: string | null; body: string | null; data: Record<string, unknown>; occurred_at: string }[];
+  evidence: { id: string; filename: string; content_type: string; size_bytes: number; sha256: string; description: string | null; created_at: string; uploaded_by_name: string | null }[];
+  tasks: Task[];
+  can_manage: boolean;
+};
+
+export type RemediationSummary = {
+  open: number;
+  in_progress: number;
+  awaiting_verification: number;
+  overdue: number;
+  completed_30d: number;
+  on_time_rate: number | null;
+  median_days_to_fix: number | null;
+  unassigned_urgent_findings: number;
+};
+
+export type ReportItem = {
+  id: string;
+  report_type: string;
+  type_label: string;
+  format: "pdf" | "csv";
+  title: string;
+  period_start: string;
+  period_end: string;
+  status: string;
+  size_bytes: number | null;
+  scheduled: boolean;
+  created_by_name: string | null;
+  created_at: string;
+};
+
+export type ReportTypeInfo = { value: string; label: string; csv: boolean };

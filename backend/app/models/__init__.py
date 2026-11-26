@@ -3,6 +3,15 @@ from app.models.audit import AuditLog
 from app.models.base import Base
 from app.models.billing import Subscription
 from app.models.endpoint import Agent, AgentEnrolmentToken, IntegrationKey, SecurityEvent
+from app.models.incident import (
+    Incident,
+    IncidentAlert,
+    IncidentAsset,
+    IncidentEvent,
+    IncidentEvidence,
+    RemediationTask,
+    Report,
+)
 from app.models.monitoring import (
     Alert,
     CheckRun,
@@ -16,6 +25,13 @@ from app.models.organisation import Department, Invitation, Membership, Organisa
 from app.models.user import AuthSession, PasswordResetToken, User
 
 __all__ = [
+    "Incident",
+    "IncidentAlert",
+    "IncidentAsset",
+    "IncidentEvent",
+    "IncidentEvidence",
+    "RemediationTask",
+    "Report",
     "Agent",
     "AgentEnrolmentToken",
     "IntegrationKey",

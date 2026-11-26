@@ -52,9 +52,9 @@ const NAV: { title?: string; items: NavItem[] }[] = [
     items: [
       { href: "/findings", label: "Findings", icon: ScanSearch, permission: "findings:read" },
       { href: "/alerts", label: "Alerts", icon: Bell, permission: "alerts:read" },
-      { href: "/incidents", label: "Incidents", icon: Siren, soon: true },
-      { href: "/remediation", label: "Remediation", icon: Wrench, soon: true },
-      { href: "/reports", label: "Reports", icon: FileText, soon: true },
+      { href: "/incidents", label: "Incidents", icon: Siren, permission: "incidents:report" },
+      { href: "/remediation", label: "Remediation", icon: Wrench },
+      { href: "/reports", label: "Reports", icon: FileText, permission: "reports:read" },
     ],
   },
   {

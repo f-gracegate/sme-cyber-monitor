@@ -275,3 +275,76 @@ Object.assign(AUDIT_ACTIONS, {
   "integration.key_revoked": "Integration key revoked",
   "network.collector_enrolled": "Network collector enrolled",
 });
+
+// --- Incidents and remediation --------------------------------------------------------------
+
+export const INCIDENT_STATUS: Record<string, { label: string; tone: Tone }> = {
+  open: { label: "Open", tone: "critical" },
+  investigating: { label: "Investigating", tone: "primary" },
+  contained: { label: "Contained", tone: "warning" },
+  resolved: { label: "Resolved", tone: "success" },
+  closed: { label: "Closed", tone: "neutral" },
+};
+
+export const INCIDENT_CATEGORIES: { value: string; label: string }[] = [
+  { value: "phishing", label: "Phishing or scam" },
+  { value: "malware", label: "Malware or ransomware" },
+  { value: "account_compromise", label: "Compromised account" },
+  { value: "unauthorised_access", label: "Unauthorised access" },
+  { value: "intrusion", label: "Network intrusion" },
+  { value: "data_loss", label: "Data leak or loss" },
+  { value: "lost_device", label: "Lost or stolen device" },
+  { value: "availability", label: "Service outage" },
+  { value: "policy_violation", label: "Policy violation" },
+  { value: "other", label: "Something else" },
+];
+
+export const categoryName = (v: string) =>
+  INCIDENT_CATEGORIES.find((c) => c.value === v)?.label ?? v;
+
+export const CLOSURE_REASONS = [
+  { value: "resolved", label: "Resolved" },
+  { value: "false_positive", label: "False alarm" },
+  { value: "duplicate", label: "Duplicate" },
+  { value: "accepted_risk", label: "Risk accepted" },
+  { value: "other", label: "Other" },
+];
+
+export const INCIDENT_SOURCE: Record<string, string> = {
+  manual: "Opened by the team",
+  employee_report: "Reported by staff",
+  correlation: "Opened automatically",
+};
+
+export const TASK_STATUS: Record<string, { label: string; tone: Tone }> = {
+  open: { label: "To do", tone: "neutral" },
+  in_progress: { label: "In progress", tone: "primary" },
+  done: { label: "Awaiting verification", tone: "warning" },
+  verified: { label: "Verified", tone: "success" },
+  cancelled: { label: "Cancelled", tone: "neutral" },
+};
+
+export const TASK_KIND: Record<string, string> = {
+  remediation: "Fix",
+  containment: "Containment",
+  recovery: "Recovery",
+};
+
+export const POSTURE_COMPONENTS: Record<string, { label: string; help: string }> = {
+  findings: { label: "Open findings", help: "Weighted by severity" },
+  coverage: { label: "Monitoring coverage", help: "Assets with current data" },
+  endpoint_health: { label: "Device health", help: "Agents reporting and healthy" },
+  remediation: { label: "Fixing on time", help: "Overdue and unassigned work" },
+  incidents: { label: "Open incidents", help: "Weighted by severity" },
+};
+
+Object.assign(AUDIT_ACTIONS, {
+  "incident.created": "Incident opened",
+  "incident.updated": "Incident updated",
+  "incident.evidence_added": "Evidence added",
+  "incident.evidence_downloaded": "Evidence downloaded",
+  "remediation.task_created": "Remediation task created",
+  "remediation.task_updated": "Remediation task updated",
+  "report.generated": "Report generated",
+  "report.downloaded": "Report downloaded",
+});

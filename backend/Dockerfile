@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 WORKDIR /srv
-RUN useradd --create-home --uid 10001 app
+RUN useradd --create-home --uid 10001 app && mkdir -p /data/objects && chown app /data/objects
 
 ARG INSTALL_DEV=false
 COPY requirements.txt requirements-dev.txt ./

@@ -9,11 +9,14 @@ from app.api.deps import OrgContext, org_scope
 from app.core.db import get_db
 from app.core.errors import APIError, not_found
 from app.core.redis import rate_limit
+from app.incidents.service import cancel_tasks_for_finding, verify_tasks_for_finding
 from app.models import (
     Alert,
     Asset,
     CheckRun,
     Finding,
+    Incident,
+    IncidentAlert,
     MonitoringCheck,
     Notification,
     NotificationPreference,
@@ -391,6 +394,10 @@ def update_finding(
                 resolution_note=note or f"Finding marked {body.status.replace('_', ' ')}",
             )
         )
+    if body.status == "resolved":
+        verify_tasks_for_finding(db, finding, "manual", ctx.user)
+    elif body.status == "accepted_risk":
+        cancel_tasks_for_finding(db, finding, "Risk accepted")
     audit.record(
         db,
         "finding.updated",
@@ -444,6 +451,24 @@ def list_alerts(
     )
 
 
+def _incident_ref(db: Session, alert: Alert) -> dict | None:
+    incident = db.scalar(
+        select(Incident)
+        .join(IncidentAlert, IncidentAlert.incident_id == Incident.id)
+        .where(IncidentAlert.alert_id == alert.id)
+        .order_by(Incident.created_at.desc())
+        .limit(1)
+    )
+    if incident is None:
+        return None
+    return {
+        "id": incident.id,
+        "reference": incident.reference,
+        "title": incident.title,
+        "status": incident.status,
+    }
+
+
 def _alert_detail(db: Session, alert: Alert) -> AlertDetail:
     finding = db.get(Finding, alert.finding_id)
     asset = db.get(Asset, alert.asset_id)
@@ -456,6 +481,7 @@ def _alert_detail(db: Session, alert: Alert) -> AlertDetail:
             ),
             "acknowledged_by_name": _user_name(db, alert.acknowledged_by),
             "resolved_by_name": _user_name(db, alert.resolved_by),
+            "incident": _incident_ref(db, alert),
         }
     )
 
