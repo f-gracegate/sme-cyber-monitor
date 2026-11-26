@@ -13,7 +13,7 @@ Interactive OpenAPI docs: `http://localhost:8100/api/docs` (development only).
   `X-Request-ID`.
 - Lists: `{"items", "total", "page", "page_size"}` with `page` / `page_size` (max 100).
 
-## Endpoints (Milestone 1)
+## Endpoints
 
 | Area | Method | Path |
 | --- | --- | --- |
@@ -40,6 +40,15 @@ Interactive OpenAPI docs: `http://localhost:8100/api/docs` (development only).
 | Overview | GET | `/overview` |
 | Audit | GET | `/audit-logs` |
 | Billing | GET | `/billing/subscription` |
+| Monitoring | GET | `/monitoring/summary`, `/monitoring/checks`, `/monitoring/runs` |
+| Monitoring | POST | `/monitoring/checks`, `/monitoring/checks/{id}/run` |
+| Monitoring | PATCH | `/monitoring/checks/{id}` (enable/disable, interval) |
+| Findings | GET | `/findings`, `/findings/{id}` |
+| Findings | PATCH | `/findings/{id}` (open, resolved, accepted_risk + note) |
+| Alerts | GET | `/alerts`, `/alerts/{id}` |
+| Alerts | PATCH | `/alerts/{id}` (new, acknowledged, investigating, resolved) |
+| Notifications | GET | `/notifications`, `/notifications/preferences` |
+| Notifications | POST, PUT | `/notifications/read`, `/notifications/preferences` |
 | Platform | GET | `/platform/organisations` (platform admins) |
 | Health | GET | `/api/health` |
 

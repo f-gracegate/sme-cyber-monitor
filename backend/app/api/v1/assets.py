@@ -20,6 +20,7 @@ from app.models import (
     User,
 )
 from app.models.asset import ASSET_CATEGORIES, EXTERNAL_ASSET_TYPES
+from app.monitoring.engine import ensure_default_checks, resolve_asset_findings
 from app.schemas.asset import (
     AssetCreate,
     AssetDetail,
@@ -279,6 +280,7 @@ def update_asset(
             ):
                 auth.status = "superseded"
             asset.monitoring_status = "not_monitored"
+            resolve_asset_findings(db, asset, "Resolved: the asset's address changed.", ctx.user.id)
 
     for key in ("name", "technology", "location", "notes"):
         if isinstance(changes.get(key), str):
@@ -321,6 +323,7 @@ def archive_asset(
         asset.monitoring_status = (
             "paused" if asset.monitoring_status != "not_monitored" else asset.monitoring_status
         )
+        resolve_asset_findings(db, asset, "Resolved: asset archived.", ctx.user.id)
         audit.record(
             db,
             "asset.archived",
@@ -456,6 +459,7 @@ def check_verification(
         auth.verified_by = ctx.user.id
         auth.failure_reason = None
         asset.monitoring_status = "authorised"
+        ensure_default_checks(db, asset)
         action = "asset.authorised"
     else:
         auth.status = "failed"

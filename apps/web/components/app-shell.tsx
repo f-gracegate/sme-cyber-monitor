@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { NotificationBell } from "@/components/notification-bell";
 import { PoweredBy, ProductMark } from "@/components/powered-by";
 import { toggleTheme } from "@/components/providers";
 import { useSession } from "@/components/session";
@@ -39,14 +40,14 @@ const NAV: { title?: string; items: NavItem[] }[] = [
     items: [
       { href: "/overview", label: "Overview", icon: LayoutDashboard },
       { href: "/assets", label: "Assets", icon: Server, permission: "assets:read" },
-      { href: "/monitoring", label: "Monitoring", icon: Activity, soon: true },
+      { href: "/monitoring", label: "Monitoring", icon: Activity, permission: "monitoring:read" },
     ],
   },
   {
     title: "Detect & respond",
     items: [
-      { href: "/findings", label: "Findings", icon: ScanSearch, soon: true },
-      { href: "/alerts", label: "Alerts", icon: Bell, soon: true },
+      { href: "/findings", label: "Findings", icon: ScanSearch, permission: "findings:read" },
+      { href: "/alerts", label: "Alerts", icon: Bell, permission: "alerts:read" },
       { href: "/incidents", label: "Incidents", icon: Siren, soon: true },
       { href: "/remediation", label: "Remediation", icon: Wrench, soon: true },
       { href: "/reports", label: "Reports", icon: FileText, soon: true },
@@ -316,6 +317,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="min-w-0 flex-1">
           <OrgSwitcher />
         </div>
+        <NotificationBell />
         <button
           type="button"
           onClick={toggleTheme}

@@ -1,12 +1,20 @@
 # Architecture
 
-## Today (Milestone 1)
+## Today (Phase 2)
 
 ```
 Browser ──HTTPS──▶ Next.js web app ──/api/* rewrite──▶ FastAPI ──▶ PostgreSQL (RLS)
-                    (same origin)                        │
-                                                         └──────▶ Redis (rate limits, dev mail)
+                    (same origin)                        │              ▲
+                                                         └─▶ Redis      │
+                         Monitoring worker(s) ──claims due checks (SKIP LOCKED)──┘
+                                 │
+                                 └──▶ authorised public websites & domains (SSRF-safe)
 ```
+
+The worker claims due checks with `FOR UPDATE SKIP LOCKED`, so several workers can run in
+parallel without running a check twice. Network calls happen outside database transactions.
+Results go through one engine (`app/monitoring/engine.py`): finding upsert, alert deduplication,
+automatic resolution, notifications, asset status and the daily posture snapshot.
 
 - **Same-origin API.** The browser only talks to the Next.js origin; `/api/*` is proxied to
   FastAPI. Session cookies stay first-party, `HttpOnly`, `SameSite=Lax`, and no CORS is needed.

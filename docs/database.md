@@ -4,7 +4,7 @@ PostgreSQL is the system of record. Migrations live in `backend/migrations/versi
 the owner role; the application uses the least-privileged `smecm_app` role
 (`infrastructure/database/init/01-roles.sh`).
 
-## Tables (Milestone 1)
+## Tables
 
 | Table | Purpose | Tenant scoped | RLS |
 | --- | --- | --- | --- |
@@ -19,17 +19,23 @@ the owner role; the application uses the least-privileged `smecm_app` role
 | `asset_authorisations` | Proof of control or permission to monitor | ✅ | ✅ |
 | `subscriptions` | Plan, status and period per organisation | ✅ | ✅ |
 | `audit_logs` | Append-only record of security-relevant actions | ✅ | ✅ |
+| `monitoring_checks` | Scheduled check per asset and type, with state between runs | ✅ | ✅ |
+| `check_runs` | Result of each run (kept 30 days) | ✅ | ✅ |
+| `findings` | One row per asset and rule; open, resolved or accepted risk | ✅ | ✅ |
+| `alerts` | At most one unresolved alert per finding (partial unique index) | ✅ | ✅ |
+| `notifications` | Per-user in-app notifications | ✅ | ✅ (user + org) |
+| `notification_preferences` | Per-user email and in-app severity thresholds | ✅ | ✅ |
+| `risk_score_history` | Daily posture score per organisation | ✅ | ✅ |
 
 `audit_logs` grants the application `INSERT` and `SELECT` only. `UPDATE`, `DELETE` and `TRUNCATE`
 are revoked, and a test asserts it.
 
 ## Planned (later phases)
 
-`agents`, `agent_enrolment_tokens`, `collectors`, `monitoring_profiles`, `monitoring_checks`,
-`check_runs`, `findings`, `finding_evidence`, `alerts`, `incidents`, `incident_events`,
-`remediation_tasks`, `notifications`, `reports`, `usage_records`, `detection_rules`,
+`agents`, `agent_enrolment_tokens`, `collectors`, `monitoring_profiles`, `incidents`,
+`incident_events`, `remediation_tasks`, `reports`, `usage_records`, `detection_rules`,
 `event_envelopes`, `event_sources`, `api_keys`, `integration_connections`, `alert_rules`,
-`risk_score_history`, `data_retention_policies`, `asset_discovery_jobs`.
+`data_retention_policies`, `asset_discovery_jobs`.
 
 High-volume raw telemetry will go to an indexed event store (OpenSearch evaluation), not
 ordinary relational tables. PostgreSQL keeps the authoritative business records.

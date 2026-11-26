@@ -7,10 +7,12 @@ A multi-tenant SaaS platform that helps a small or medium business see what it n
 prove it is authorised to monitor it, detect problems and coordinate the response, without
 running its own security operations centre.
 
-> **Status: Milestone 1 (application foundation).** Accounts, MFA, organisations and tenant
-> isolation, roles, team management, asset inventory with ownership verification, audit history,
-> plans and the dashboard shell are working. Website, endpoint and network monitoring, findings,
-> alerts, incidents, reports and the mobile app follow in later phases (see
+> **Status: Phase 2 (external asset monitoring) complete.** On top of the Milestone 1 foundation
+> (accounts, MFA, organisations, tenant isolation, roles, team, asset inventory with ownership
+> verification, audit history, plans), authorised websites and domains are now monitored for
+> uptime, TLS certificates, security headers, DNS and email security. Results become plain-English
+> findings, deduplicated alerts, in-app and email notifications, and a posture score with a daily
+> trend. Endpoint and network monitoring, incidents, reports and the mobile app follow (see
 > [docs/roadmap.md](docs/roadmap.md)).
 
 ## Quick start
@@ -31,7 +33,9 @@ Sign in with the default platform administrator:
 | `Admin`  | `password` |
 
 You'll be asked to choose a new password on first sign-in. The seed also creates a **Demo
-Business Ltd** organisation with six sample assets.
+Business Ltd** organisation with six sample assets. In development its website and domain point at
+`example.com` (reserved by IANA for documentation) and are pre-authorised, so live monitoring
+results appear within a minute.
 
 Invitation and password-reset emails are not sent in development. Open **Dev mailbox** in the
 sidebar (platform admins) to follow their links.
@@ -44,15 +48,20 @@ docker compose down -v && docker compose up --build
 
 ## Tests and checks
 
+The `monitor` service is the worker that runs scheduled checks. Run more than one with
+`docker compose up --scale monitor=2`; they share work safely.
+
 ```bash
 docker compose run --rm backend pytest
 docker compose run --rm backend ruff check .
 cd apps/web && npm ci && npm run lint && npx next build
 ```
 
-The backend suite includes the release-blocking security scenarios: cross-tenant access,
-database-level Row-Level Security, forged organisation headers, privilege escalation, revoked
-members, refresh-token reuse, MFA replay and SSRF protection for ownership checks.
+The backend suite (72 tests) includes the release-blocking security scenarios: cross-tenant
+access, database-level Row-Level Security, forged organisation headers, privilege escalation,
+revoked members, refresh-token reuse, MFA replay, SSRF protection (including via redirects), and
+the finding/alert lifecycle: deduplication, auto-resolution, and the rule that missing data never
+clears a finding.
 
 ## Repository layout
 

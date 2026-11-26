@@ -46,7 +46,7 @@ function readCookie(name: string): string | null {
 type Query = Record<string, string | number | boolean | null | undefined | string[]>;
 
 export type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   query?: Query;
   /** Send X-Organisation-Id (default true). */

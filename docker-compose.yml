@@ -51,6 +51,12 @@ services:
     command: >
       sh -c "alembic upgrade head && python -m app.cli seed --demo &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --proxy-headers --forwarded-allow-ips=$${FORWARDED_ALLOW_IPS:-127.0.0.1}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
     ports:
       - "127.0.0.1:8100:8000"
     volumes:
@@ -59,6 +65,24 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+
+  monitor:
+    # Runs scheduled monitoring checks. Scale with: docker compose up --scale monitor=2
+    build:
+      context: ./backend
+      args:
+        INSTALL_DEV: "true"
+    env_file:
+      - ./backend/.env.example
+    environment:
+      DATABASE_URL: postgresql+psycopg://smecm_app:smecm_app_dev@postgres:5432/smecm
+      REDIS_URL: redis://redis:6379/0
+    command: python -m app.workers.monitor
+    volumes:
+      - ./backend:/srv
+    depends_on:
+      backend:
         condition: service_healthy
 
   web:

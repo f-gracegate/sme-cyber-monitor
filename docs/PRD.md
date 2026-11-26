@@ -46,18 +46,18 @@ operating processes are independently tested.
 | FR-002 | Organisation creation and workspace isolation | Must | ✅ Milestone 1 |
 | FR-003 | Invite and manage organisation members | Must | ✅ Milestone 1 |
 | FR-004 | Register and verify authorised assets | Must | ✅ Milestone 1 |
-| FR-005 | Monitor websites and domain configurations | Must | Phase 2 |
-| FR-006 | Schedule monitoring checks | Must | Phase 2 |
+| FR-005 | Monitor websites and domain configurations | Must | ✅ Phase 2 |
+| FR-006 | Schedule monitoring checks | Must | ✅ Phase 2 |
 | FR-007 | Install, register and manage endpoint agents | Must | Phase 3 |
 | FR-008 | Collect and normalise endpoint security events | Must | Phase 3 |
 | FR-009 | Register servers and collect security telemetry | Must | Phase 3 |
 | FR-010 | Receive network telemetry through a collector | Must | Phase 4 |
-| FR-011 | Generate findings from monitoring data | Must | Phase 2 |
-| FR-012 | Correlate related events into alerts | Must | Phase 5 |
-| FR-013 | Prioritise risks and display severity | Must | Phase 2/5 |
+| FR-011 | Generate findings from monitoring data | Must | ✅ Phase 2 |
+| FR-012 | Correlate related events into alerts | Must | ✅ Dedup/grouping (Phase 2); cross-event correlation Phase 5 |
+| FR-013 | Prioritise risks and display severity | Must | ✅ Phase 2 |
 | FR-014 | Assign remediation tasks | Must | Phase 5 |
 | FR-015 | Record incident investigations | Must | Phase 5 |
-| FR-016 | Notify authorised users | Must | Phase 2 |
+| FR-016 | Notify authorised users | Must | ✅ In-app + email (Phase 2); push Phase 6 |
 | FR-017 | Generate management reports | Must | Phase 5 |
 | FR-018 | Maintain searchable audit logs | Must | ✅ Milestone 1 |
 | FR-019 | Provide role-based access control | Must | ✅ Milestone 1 |

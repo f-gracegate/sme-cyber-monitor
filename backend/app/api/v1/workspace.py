@@ -1,7 +1,7 @@
 """Organisation-wide views: overview, audit log, billing and the platform console."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -12,8 +12,21 @@ from app.api.deps import AuthContext, OrgContext, org_scope, require_platform_ad
 from app.core.config import settings
 from app.core.db import get_db, system_context
 from app.core.errors import APIError
-from app.models import Asset, AuditLog, Invitation, Membership, Organisation, Subscription, User
+from app.models import (
+    Alert,
+    Asset,
+    AuditLog,
+    Finding,
+    Invitation,
+    Membership,
+    Organisation,
+    RiskScoreSnapshot,
+    Subscription,
+    User,
+)
 from app.models.asset import ASSET_CATEGORIES
+from app.monitoring.catalogue import severity_rank
+from app.monitoring.scoring import compute_posture
 from app.schemas.asset import AuditEntryOut
 from app.schemas.common import Page
 from app.security.rbac import Perm, Role
@@ -48,6 +61,41 @@ class Overview(BaseModel):
     posture_score: int | None
     posture_note: str
     recommendations: list[Recommendation]
+    monitored_assets: int
+    monitorable_assets: int
+    assets_with_check_errors: int
+    findings_open_by_severity: dict[str, int]
+    findings_by_status: dict[str, int]
+    alerts_open_by_severity: dict[str, int]
+    recent_alerts: list["AlertBrief"]
+    most_exposed_assets: list["ExposedAsset"]
+    trend: list["TrendPoint"]
+
+
+class AlertBrief(BaseModel):
+    id: uuid.UUID
+    title: str
+    severity: str
+    status: str
+    asset_name: str
+    last_seen_at: datetime
+
+
+class ExposedAsset(BaseModel):
+    id: uuid.UUID
+    name: str
+    identifier: str
+    type: str
+    open_findings: int
+    highest_severity: str
+
+
+class TrendPoint(BaseModel):
+    day: str
+    score: int
+
+
+Overview.model_rebuild()
 
 
 @router.get("/overview", response_model=Overview)
@@ -179,7 +227,131 @@ def overview(
             )
         )
 
+    posture = compute_posture(db, org_id)
+    open_sev = posture["open_by_severity"]
+    active_asset = (Asset.organisation_id == org_id) & (Asset.status == "active")
+    findings_by_status = dict(
+        db.execute(
+            select(Finding.status, func.count())
+            .join(Asset, Asset.id == Finding.asset_id)
+            .where(Finding.organisation_id == org_id, active_asset)
+            .group_by(Finding.status)
+        ).all()
+    )
+    alerts_sev = dict(
+        db.execute(
+            select(Alert.severity, func.count())
+            .where(Alert.organisation_id == org_id, Alert.status != "resolved")
+            .group_by(Alert.severity)
+        ).all()
+    )
+    recent_alerts = []
+    if ctx.has(Perm.ALERTS_READ):
+        recent_alerts = [
+            AlertBrief(
+                id=a.id,
+                title=a.title,
+                severity=a.severity,
+                status=a.status,
+                asset_name=name,
+                last_seen_at=a.last_seen_at,
+            )
+            for a, name in db.execute(
+                select(Alert, Asset.name)
+                .join(Asset, Asset.id == Alert.asset_id)
+                .where(Alert.organisation_id == org_id, Alert.status != "resolved")
+                .order_by(Alert.last_seen_at.desc())
+                .limit(5)
+            ).all()
+        ]
+    exposed: dict[uuid.UUID, ExposedAsset] = {}
+    if ctx.has(Perm.FINDINGS_READ):
+        for asset, sev in db.execute(
+            select(Asset, Finding.severity)
+            .join(Finding, Finding.asset_id == Asset.id)
+            .where(active_asset, Finding.status == "open", Finding.severity != "informational")
+        ).all():
+            entry = exposed.setdefault(
+                asset.id,
+                ExposedAsset(
+                    id=asset.id,
+                    name=asset.name,
+                    identifier=asset.identifier,
+                    type=asset.type,
+                    open_findings=0,
+                    highest_severity=sev,
+                ),
+            )
+            entry.open_findings += 1
+            if severity_rank(sev) > severity_rank(entry.highest_severity):
+                entry.highest_severity = sev
+    most_exposed = sorted(
+        exposed.values(),
+        key=lambda e: (severity_rank(e.highest_severity), e.open_findings),
+        reverse=True,
+    )[:5]
+    since = datetime.now(UTC).date() - timedelta(days=30)
+    trend = [
+        TrendPoint(day=snap.day.isoformat(), score=snap.score)
+        for snap in db.scalars(
+            select(RiskScoreSnapshot)
+            .where(RiskScoreSnapshot.organisation_id == org_id, RiskScoreSnapshot.day >= since)
+            .order_by(RiskScoreSnapshot.day)
+        )
+    ]
+
+    urgent = open_sev["critical"] + open_sev["high"]
+    if urgent and ctx.has(Perm.FINDINGS_READ):
+        recs.append(
+            Recommendation(
+                id="urgent_findings",
+                severity="critical" if open_sev["critical"] else "high",
+                title=f"Fix {urgent} urgent security finding(s)",
+                description="Critical and high findings are the issues most likely to be exploited "
+                "or to take your services offline.",
+                action_label="View findings",
+                action_href="/findings?severity=critical&severity=high",
+            )
+        )
+    if posture["assets_with_check_errors"] and ctx.has(Perm.MONITORING_READ):
+        n = posture["assets_with_check_errors"]
+        recs.append(
+            Recommendation(
+                id="check_errors",
+                severity="medium",
+                title=f"{n} asset(s) couldn't be checked",
+                description="Some checks failed to run, so we can't see these assets clearly. "
+                "Missing data never improves your score.",
+                action_label="Open monitoring",
+                action_href="/monitoring?status=error",
+            )
+        )
+    recs.sort(key=lambda r: severity_rank(r.severity), reverse=True)
+
+    if posture["score"] is None:
+        note = (
+            "A security score needs monitoring data. It appears once an authorised website or "
+            "domain has been checked, and is never raised by missing data."
+        )
+    else:
+        note = (
+            f"Based on {posture['monitored_assets']} monitored asset(s). Each open finding "
+            "lowers the score by its severity; assets we can't check are shown as coverage "
+            "gaps, not as good news."
+        )
+
     return Overview(
+        monitored_assets=posture["monitored_assets"],
+        monitorable_assets=posture["monitorable_assets"],
+        assets_with_check_errors=posture["assets_with_check_errors"],
+        findings_open_by_severity=open_sev,
+        findings_by_status={
+            k: findings_by_status.get(k, 0) for k in ("open", "accepted_risk", "resolved")
+        },
+        alerts_open_by_severity={k: alerts_sev.get(k, 0) for k in open_sev},
+        recent_alerts=recent_alerts,
+        most_exposed_assets=most_exposed,
+        trend=trend,
         organisation_name=ctx.organisation.name,
         assets_total=total_assets,
         assets_by_category=by_category,
@@ -190,9 +362,8 @@ def overview(
         members_with_mfa=with_mfa,
         privileged_without_mfa=privileged_without,
         pending_invitations=pending,
-        posture_score=None,
-        posture_note="A security score needs monitoring data. It appears once website, "
-        "endpoint or network monitoring is connected, and is never raised by missing data.",
+        posture_score=posture["score"],
+        posture_note=note,
         recommendations=recs,
     )
 

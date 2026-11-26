@@ -130,3 +130,80 @@ export const AUDIT_ACTIONS: Record<string, string> = {
 };
 
 export const auditLabel = (a: string) => AUDIT_ACTIONS[a] ?? a;
+
+// --- Monitoring -----------------------------------------------------------------------------
+
+export const CHECK_TYPES: Record<string, { label: string; description: string }> = {
+  uptime: {
+    label: "Uptime",
+    description: "Is the website answering, and how fast?",
+  },
+  tls: {
+    label: "TLS certificate",
+    description: "Certificate validity, expiry and secure protocol versions.",
+  },
+  security_headers: {
+    label: "Security headers",
+    description: "Browser protections such as HSTS, CSP and secure cookies.",
+  },
+  dns: {
+    label: "DNS",
+    description: "Nameservers, records and unexpected changes.",
+  },
+  email_security: {
+    label: "Email security",
+    description: "SPF and DMARC protection against email spoofing.",
+  },
+};
+
+export const checkTypeLabel = (t: string) => CHECK_TYPES[t]?.label ?? t;
+
+export const CHECK_STATUS: Record<string, { label: string; tone: Tone }> = {
+  pending: { label: "Waiting for first run", tone: "neutral" },
+  ok: { label: "Passing", tone: "success" },
+  warning: { label: "Issues found", tone: "warning" },
+  failing: { label: "Failing", tone: "critical" },
+  error: { label: "Couldn't check", tone: "high" },
+  disabled: { label: "Turned off", tone: "neutral" },
+};
+
+export const INTERVALS = [
+  { value: 5, label: "Every 5 min" },
+  { value: 15, label: "Every 15 min" },
+  { value: 30, label: "Every 30 min" },
+  { value: 60, label: "Hourly" },
+  { value: 180, label: "Every 3 hours" },
+  { value: 360, label: "Every 6 hours" },
+  { value: 720, label: "Every 12 hours" },
+  { value: 1440, label: "Daily" },
+];
+
+export const SEVERITIES = [
+  { value: "critical", label: "Critical" },
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+  { value: "informational", label: "Informational" },
+] as const;
+
+export const severityLabel = (s: string) => SEVERITIES.find((x) => x.value === s)?.label ?? s;
+
+export const ALERT_STATUS: Record<string, { label: string; tone: Tone }> = {
+  new: { label: "New", tone: "critical" },
+  acknowledged: { label: "Acknowledged", tone: "warning" },
+  investigating: { label: "Investigating", tone: "primary" },
+  resolved: { label: "Resolved", tone: "success" },
+};
+
+export const FINDING_STATUS: Record<string, { label: string; tone: Tone }> = {
+  open: { label: "Open", tone: "warning" },
+  accepted_risk: { label: "Risk accepted", tone: "neutral" },
+  resolved: { label: "Resolved", tone: "success" },
+};
+
+Object.assign(AUDIT_ACTIONS, {
+  "monitoring.check_created": "Monitoring check added",
+  "monitoring.check_updated": "Monitoring check changed",
+  "finding.updated": "Finding status changed",
+  "alert.updated": "Alert status changed",
+});

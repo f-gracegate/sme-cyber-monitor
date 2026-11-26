@@ -139,7 +139,7 @@ export type Recommendation = {
   action_href: string;
 };
 
-export type Overview = {
+export type Overview = OverviewMonitoring & {
   organisation_name: string;
   assets_total: number;
   assets_by_category: Record<string, number>;
@@ -183,4 +183,146 @@ export type PlatformOrganisation = {
   members: number;
   assets: number;
   created_at: string;
+};
+
+// --- Monitoring (Phase 2) -------------------------------------------------------------------
+
+export type Severity = "critical" | "high" | "medium" | "low" | "informational";
+
+export type AssetRef = {
+  id: string;
+  name: string;
+  identifier: string;
+  type: string;
+  criticality: string;
+};
+
+export type Check = {
+  id: string;
+  asset_id: string;
+  check_type: string;
+  interval_minutes: number;
+  enabled: boolean;
+  next_run_at: string;
+  last_run_at: string | null;
+  last_status: "pending" | "ok" | "warning" | "failing" | "error";
+  last_summary: string | null;
+  consecutive_failures: number;
+  asset: AssetRef | null;
+};
+
+export type CheckRun = {
+  id: string;
+  check_id: string;
+  asset_id: string;
+  check_type: string;
+  started_at: string;
+  completed_at: string;
+  duration_ms: number;
+  status: string;
+  summary: string;
+  result: Record<string, unknown>;
+};
+
+export type MonitoringSummary = {
+  checks_total: number;
+  checks_enabled: number;
+  by_status: Record<string, number>;
+  monitored_assets: number;
+  monitorable_assets: number;
+  awaiting_authorisation: number;
+  assets_with_check_errors: number;
+};
+
+export type Finding = {
+  id: string;
+  asset_id: string;
+  check_type: string;
+  rule_key: string;
+  title: string;
+  description: string;
+  impact: string;
+  recommendation: string;
+  severity: Severity;
+  score: number;
+  status: "open" | "resolved" | "accepted_risk";
+  evidence: Record<string, unknown>;
+  occurrences: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  asset: AssetRef | null;
+};
+
+export type FindingDetail = Finding & {
+  open_alert_id: string | null;
+  sticky: boolean;
+  resolved_by_name: string | null;
+};
+
+export type Alert = {
+  id: string;
+  finding_id: string;
+  asset_id: string;
+  title: string;
+  severity: Severity;
+  status: "new" | "acknowledged" | "investigating" | "resolved";
+  occurrences: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  acknowledged_at: string | null;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  asset: AssetRef | null;
+};
+
+export type AlertDetail = Alert & {
+  finding: Finding;
+  acknowledged_by_name: string | null;
+  resolved_by_name: string | null;
+};
+
+export type AppNotification = {
+  id: string;
+  alert_id: string | null;
+  severity: Severity | null;
+  title: string;
+  body: string;
+  link: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
+export type NotificationList = { items: AppNotification[]; unread: number };
+
+export type NotificationPreferences = {
+  email_min_severity: string;
+  in_app_min_severity: string;
+};
+
+export type OverviewMonitoring = {
+  monitored_assets: number;
+  monitorable_assets: number;
+  assets_with_check_errors: number;
+  findings_open_by_severity: Record<Severity, number>;
+  findings_by_status: Record<string, number>;
+  alerts_open_by_severity: Record<Severity, number>;
+  recent_alerts: {
+    id: string;
+    title: string;
+    severity: Severity;
+    status: string;
+    asset_name: string;
+    last_seen_at: string;
+  }[];
+  most_exposed_assets: {
+    id: string;
+    name: string;
+    identifier: string;
+    type: string;
+    open_findings: number;
+    highest_severity: Severity;
+  }[];
+  trend: { day: string; score: number }[];
 };

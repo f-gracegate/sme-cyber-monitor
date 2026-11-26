@@ -23,6 +23,8 @@ import {
   RiskBadge,
 } from "@/components/asset-badges";
 import { AssetFormDialog } from "@/components/asset-form";
+import { ChecksTable } from "@/components/checks-table";
+import { CheckStatusBadge } from "@/components/monitoring-ui";
 import { CopyField } from "@/components/copy-field";
 import { Dialog } from "@/components/dialog";
 import { useToast } from "@/components/providers";
@@ -48,8 +50,10 @@ import {
   assetTypeLabel,
   auditLabel,
   categoryLabel,
+  checkTypeLabel,
 } from "@/lib/labels";
-import type { AssetDetail, AuditEntry, Page } from "@/lib/types";
+import type { AssetDetail, AuditEntry, Check, CheckRun, Finding, Page } from "@/lib/types";
+import { FindingList } from "@/components/finding-list";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -275,6 +279,125 @@ function VerificationCard({ asset }: { asset: AssetDetail }) {
   );
 }
 
+function MonitoringHistoryTab({ asset }: { asset: AssetDetail }) {
+  const { data, isPending } = useQuery({
+    queryKey: useOrgKey("asset", asset.id, "runs"),
+    queryFn: () => api<Page<CheckRun>>("/monitoring/runs", { query: { asset_id: asset.id, page_size: 50 } }),
+    refetchInterval: 30_000,
+  });
+  if (isPending) return <Skeleton className="h-40" />;
+  if (!data?.items.length) {
+    return (
+      <Card>
+        <EmptyState
+          icon={<Clock className="size-5" />}
+          title="No monitoring checks have run yet"
+          description={
+            asset.monitoring_status === "not_monitored"
+              ? "Authorise this asset first. Checks start automatically once ownership is verified."
+              : asset.type === "website" || asset.type === "domain"
+                ? "The first checks run within a minute of authorisation."
+                : "Health and security checks appear here once an endpoint agent or network collector reports for this asset (Phases 3 and 4)."
+          }
+        />
+      </Card>
+    );
+  }
+  return (
+    <Card padded={false}>
+      <ol className="divide-y divide-border">
+        {data.items.map((r) => (
+          <li key={r.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+            <CheckStatusBadge status={r.status} />
+            <span className="font-medium">{checkTypeLabel(r.check_type)}</span>
+            <span className="min-w-0 flex-1 truncate text-muted" title={r.summary}>{r.summary}</span>
+            <span className="text-xs text-subtle" title={formatDateTime(r.completed_at)}>
+              {timeAgo(r.completed_at)} · {r.duration_ms} ms
+            </span>
+          </li>
+        ))}
+      </ol>
+    </Card>
+  );
+}
+
+function FindingsTab({ assetId }: { assetId: string }) {
+  const { data, isPending } = useQuery({
+    queryKey: useOrgKey("asset", assetId, "findings"),
+    queryFn: () =>
+      api<Page<Finding>>("/findings", { query: { asset_id: assetId, status: ["open", "accepted_risk"], page_size: 100 } }),
+  });
+  if (isPending) return <Skeleton className="h-40" />;
+  if (!data?.items.length) {
+    return (
+      <Card>
+        <EmptyState
+          icon={<ScanSearch className="size-5" />}
+          title="No open findings"
+          description="Nothing currently needs fixing on this asset. If it isn't monitored yet, that means no checks have run, not that it's safe."
+        />
+      </Card>
+    );
+  }
+  return (
+    <Card padded={false}>
+      <FindingList findings={data.items} />
+    </Card>
+  );
+}
+
+function ConfigurationTab({ asset }: { asset: AssetDetail }) {
+  const { data, isPending } = useQuery({
+    queryKey: useOrgKey("monitoring", "checks", { asset: asset.id }),
+    queryFn: () => api<Check[]>("/monitoring/checks", { query: { asset_id: asset.id } }),
+  });
+  const collection =
+    asset.type === "website" || asset.type === "domain"
+      ? "Cloud monitoring worker"
+      : ["firewall", "router", "switch", "network_device"].includes(asset.type)
+        ? "On-premises network collector (Phase 4)"
+        : asset.type.startsWith("cloud")
+          ? "Cloud provider integration (later phase)"
+          : "Endpoint agent (Phase 3)";
+  return (
+    <div className="space-y-6">
+      <Card>
+        <dl className="grid gap-5 sm:grid-cols-3">
+          <Detail label="Monitoring status">
+            <MonitoringBadge status={asset.monitoring_status} />
+          </Detail>
+          <Detail label="Authorisation method">
+            {asset.authorisation ? VERIFICATION_METHODS[asset.authorisation.method] : "—"}
+          </Detail>
+          <Detail label="Collection method">{collection}</Detail>
+        </dl>
+      </Card>
+      <Card padded={false}>
+        <div className="border-b border-border px-5 py-4">
+          <h2 className="text-[15px] font-semibold">Checks</h2>
+          <p className="text-[13px] text-muted">What we check on this asset, and how often.</p>
+        </div>
+        {isPending ? (
+          <div className="p-5">
+            <Skeleton className="h-24" />
+          </div>
+        ) : !data?.length ? (
+          <EmptyState
+            title="No checks configured"
+            description={
+              asset.monitoring_status === "not_monitored"
+                ? "Checks are created when ownership is verified."
+                : "This type of asset is monitored by agents or collectors added in later phases."
+            }
+          />
+        ) : (
+          <ChecksTable checks={data} showAsset={false} />
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function ActivityTab({ assetId }: { assetId: string }) {
   const { data, isPending } = useQuery({
     queryKey: useOrgKey("asset", assetId, "activity"),
@@ -475,62 +598,18 @@ export function AssetDetailView() {
         </div>
       )}
 
-      {tab === "monitoring" && (
-        <Card>
-          <EmptyState
-            icon={<Clock className="size-5" />}
-            title="No monitoring checks have run yet"
-            description={
-              asset.type === "website" || asset.type === "domain"
-                ? "Uptime, DNS, TLS certificate and security header checks run here once website monitoring is switched on (next development phase)."
-                : "Health and security checks appear here once an endpoint agent or network collector reports for this asset."
-            }
-          />
-        </Card>
-      )}
-      {tab === "findings" && (
-        <Card>
-          <EmptyState
-            icon={<ScanSearch className="size-5" />}
-            title="No findings"
-            description="Vulnerabilities and misconfigurations detected for this asset will be listed here with what to do next. No findings yet means no checks have run, not that the asset is safe."
-          />
-        </Card>
-      )}
+      {tab === "monitoring" && <MonitoringHistoryTab asset={asset} />}
+      {tab === "findings" && <FindingsTab assetId={asset.id} />}
       {tab === "events" && (
         <Card>
           <EmptyState
             icon={<Activity className="size-5" />}
             title="No security events"
-            description="Login attempts, process alerts and network events from agents and collectors will appear here."
+            description="Login attempts, process alerts and network events from endpoint agents and network collectors will appear here once those are connected (Phases 3 and 4)."
           />
         </Card>
       )}
-      {tab === "configuration" && (
-        <Card>
-          <CardHeader
-            title="Monitoring configuration"
-            description="Check schedules and monitoring profiles become configurable as each monitoring module is added."
-          />
-          <dl className="grid gap-5 sm:grid-cols-3">
-            <Detail label="Monitoring status">
-              <MonitoringBadge status={asset.monitoring_status} />
-            </Detail>
-            <Detail label="Authorisation method">
-              {asset.authorisation ? VERIFICATION_METHODS[asset.authorisation.method] : "—"}
-            </Detail>
-            <Detail label="Collection method">
-              {asset.type === "website" || asset.type === "domain"
-                ? "Cloud monitoring worker"
-                : ["firewall", "router", "switch", "network_device"].includes(asset.type)
-                  ? "On-premises network collector"
-                  : asset.type.startsWith("cloud")
-                    ? "Cloud provider integration"
-                    : "Endpoint agent"}
-            </Detail>
-          </dl>
-        </Card>
-      )}
+      {tab === "configuration" && <ConfigurationTab asset={asset} />}
       {tab === "activity" && <ActivityTab assetId={asset.id} />}
 
       {editing && <AssetFormDialog open asset={asset} onClose={() => setEditing(false)} />}

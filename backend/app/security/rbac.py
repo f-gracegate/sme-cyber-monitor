@@ -37,6 +37,12 @@ class Perm(StrEnum):
     BILLING_READ = "billing:read"
     BILLING_MANAGE = "billing:manage"
     REPORTS_READ = "reports:read"
+    MONITORING_READ = "monitoring:read"
+    MONITORING_MANAGE = "monitoring:manage"
+    FINDINGS_READ = "findings:read"
+    FINDINGS_MANAGE = "findings:manage"
+    ALERTS_READ = "alerts:read"
+    ALERTS_MANAGE = "alerts:manage"
 
 
 _ALL = frozenset(Perm)
@@ -45,7 +51,17 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
     Role.OWNER: _ALL,
     Role.ADMIN: _ALL - {Perm.BILLING_MANAGE},
     Role.SECURITY_ANALYST: frozenset(
-        {Perm.ORG_READ, Perm.MEMBERS_READ, Perm.ASSETS_READ, Perm.REPORTS_READ}
+        {
+            Perm.ORG_READ,
+            Perm.MEMBERS_READ,
+            Perm.ASSETS_READ,
+            Perm.REPORTS_READ,
+            Perm.MONITORING_READ,
+            Perm.FINDINGS_READ,
+            Perm.FINDINGS_MANAGE,
+            Perm.ALERTS_READ,
+            Perm.ALERTS_MANAGE,
+        }
     ),
     Role.IT_ADMIN: frozenset(
         {
@@ -55,6 +71,12 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
             Perm.ASSETS_WRITE,
             Perm.ASSETS_VERIFY,
             Perm.REPORTS_READ,
+            Perm.MONITORING_READ,
+            Perm.MONITORING_MANAGE,
+            Perm.FINDINGS_READ,
+            Perm.FINDINGS_MANAGE,
+            Perm.ALERTS_READ,
+            Perm.ALERTS_MANAGE,
         }
     ),
     Role.AUDITOR: frozenset(
@@ -65,10 +87,22 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
             Perm.AUDIT_READ,
             Perm.BILLING_READ,
             Perm.REPORTS_READ,
+            Perm.MONITORING_READ,
+            Perm.FINDINGS_READ,
+            Perm.ALERTS_READ,
         }
     ),
     Role.EMPLOYEE: frozenset({Perm.ORG_READ}),
-    Role.EXECUTIVE: frozenset({Perm.ORG_READ, Perm.ASSETS_READ, Perm.REPORTS_READ}),
+    Role.EXECUTIVE: frozenset(
+        {
+            Perm.ORG_READ,
+            Perm.ASSETS_READ,
+            Perm.REPORTS_READ,
+            Perm.MONITORING_READ,
+            Perm.FINDINGS_READ,
+            Perm.ALERTS_READ,
+        }
+    ),
 }
 
 

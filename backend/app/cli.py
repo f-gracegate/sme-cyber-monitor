@@ -12,7 +12,16 @@ from sqlalchemy import func, or_, select
 
 from app.core.config import settings
 from app.core.db import SessionLocal, system_context
-from app.models import Asset, Department, Membership, Organisation, Subscription, User
+from app.models import (
+    Asset,
+    AssetAuthorisation,
+    Department,
+    Membership,
+    Organisation,
+    Subscription,
+    User,
+)
+from app.monitoring.engine import ensure_default_checks
 from app.security.passwords import hash_password, password_policy_errors
 from app.security.rbac import Role
 from app.services import audit
@@ -26,6 +35,26 @@ DEMO_ASSETS = [
     ("File server", "fs01.office.local", "server", "critical", "Ubuntu 24.04 LTS"),
     ("Office firewall", "192.168.1.1", "firewall", "critical", "MikroTik RouterOS"),
 ]
+
+
+def _authorise_demo(db, asset: Asset, admin: User) -> None:
+    """Development only: example.com is reserved by IANA for documentation, so it's a safe,
+    real target that lets the demo show live monitoring without a DNS change."""
+    db.add(
+        AssetAuthorisation(
+            organisation_id=asset.organisation_id,
+            asset_id=asset.id,
+            method="dns_txt",
+            challenge="development-demo",
+            status="verified",
+            evidence={"note": "Development demo seed. example.com is an IANA reserved domain."},
+            requested_by=admin.id,
+            verified_by=admin.id,
+            verified_at=datetime.now(UTC),
+        )
+    )
+    asset.monitoring_status = "authorised"
+    ensure_default_checks(db, asset)
 
 
 def seed(demo: bool) -> None:
@@ -110,19 +139,21 @@ def seed(demo: bool) -> None:
                         if typ == "laptop"
                         else depts["Operations"]
                     )
-                    db.add(
-                        Asset(
-                            organisation_id=org.id,
-                            name=name,
-                            identifier=ident,
-                            type=typ,
-                            criticality=crit,
-                            technology=tech,
-                            department_id=dept.id,
-                            owner_user_id=admin.id,
-                            created_by=admin.id,
-                        )
+                    asset = Asset(
+                        organisation_id=org.id,
+                        name=name,
+                        identifier=ident,
+                        type=typ,
+                        criticality=crit,
+                        technology=tech,
+                        department_id=dept.id,
+                        owner_user_id=admin.id,
+                        created_by=admin.id,
                     )
+                    db.add(asset)
+                    db.flush()
+                    if typ in {"website", "domain"} and settings.is_development:
+                        _authorise_demo(db, asset, admin)
                 audit.record(
                     db,
                     "organisation.created",
