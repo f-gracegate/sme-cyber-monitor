@@ -4,6 +4,7 @@ Run inside the dev stack:  docker compose run --rm backend pytest
 """
 
 import os
+import tempfile
 
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DATABASE_URL"] = os.environ.get(
@@ -15,6 +16,8 @@ os.environ["MIGRATION_DATABASE_URL"] = os.environ.get(
 )
 os.environ["REDIS_URL"] = os.environ.get("TEST_REDIS_URL", "redis://localhost:6479/1")
 os.environ.pop("ALEMBIC_DATABASE_URL", None)
+# Evidence and reports go to a throwaway directory, never the real object store.
+os.environ["STORAGE_DIR"] = tempfile.mkdtemp(prefix="smecm-objects-")
 
 import pyotp  # noqa: E402
 import pytest  # noqa: E402
