@@ -7,8 +7,8 @@ Estimates are engineering targets, not guaranteed dates. Phases overlap where pr
 | 1. Foundation (wk 1–4) | Repo, database, auth + MFA, organisations, tenant isolation, roles, design system, audit log, asset inventory | ✅ Milestone 1 delivered |
 | 2. External asset monitoring (wk 5–8) | Scheduler, uptime, DNS, TLS, security headers, email security, findings, alerts, notifications, posture score and trend | ✅ Delivered |
 | 3. Endpoint & server monitoring (wk 9–14) | Wazuh evaluation, agent enrolment, health, event ingestion, detection rules, endpoint screens | ✅ Delivered |
-| 4. Network monitoring (wk 15–19) | Collector, firewall/device logs, Suricata, Zeek evaluation, network dashboards | Next |
-| 5. Incident & risk management (wk 20–22) | Correlation, risk scoring, incidents, remediation, reports | |
+| 4. Network monitoring (wk 15–19) | Collector, firewall/device logs, Suricata, Zeek evaluation, network dashboards | ✅ Delivered |
+| 5. Incident & risk management (wk 20–22) | Correlation, risk scoring, incidents, remediation, reports | Next |
 | 6. Mobile & commercial (wk 23–26) | Flutter Android/iOS, push notifications, billing (MoMo/card), onboarding | |
 | 7. Pilot & hardening (wk 27–36) | Security and performance testing, regulatory readiness, 5–10 pilot customers | |
 
@@ -35,3 +35,11 @@ updates, disk, OS support) and send security events. Detections cover brute forc
 brute force, malware, tampering, new admin accounts, log clearing, suspicious processes and
 removable media. Silent agents raise a "stopped reporting" finding. See
 [endpoints.md](endpoints.md).
+
+## Phase 4 deliverable
+
+An on-premises collector (single Python file or Docker image) receives syslog from common
+firewalls and routers, tails Suricata and Zeek output, checks that authorised network devices
+are reachable, and forwards filtered, aggregated events over outbound HTTPS. The Network page
+shows collectors, device availability, blocked connections, configuration changes and, only
+when a sensor exists, intrusion and traffic summaries. See [network.md](network.md).

@@ -485,6 +485,83 @@ _RULES = [
         "Review the alert details in the evidence and investigate the device.",
         sticky=True,
     ),
+    # --- Network (collector) ----------------------------------------------------------------
+    Rule(
+        "network_device_unreachable",
+        "device_availability",
+        "high",
+        "Network device is unreachable",
+        "The network collector couldn't reach this device on three checks in a row.",
+        "If a firewall, router or switch is down, staff and customers may lose connectivity, "
+        "and security filtering may not be working.",
+        "Check the device has power and network connections. If it's up, check whether its "
+        "management address or ports have changed.",
+    ),
+    Rule(
+        "collector_dropping_events",
+        "collector_health",
+        "medium",
+        "Network collector is dropping events",
+        "The on-premises collector is receiving more logs than it can forward, so some were lost.",
+        "Lost logs are blind spots: an attack could happen in the gap.",
+        "Give the collector more CPU or bandwidth, or reduce what network devices send to it "
+        "(for example, stop forwarding 'allowed' traffic logs).",
+    ),
+    Rule(
+        "firewall_config_changed",
+        "detection",
+        "high",
+        "Firewall or router configuration changed",
+        "A network device reported a configuration change.",
+        "Unauthorised changes can open the network to attackers or disable protection.",
+        "Confirm the change was planned and made by your IT team. If not, review and revert "
+        "it, and change the device's admin password.",
+        sticky=True,
+    ),
+    Rule(
+        "network_admin_bruteforce",
+        "detection",
+        "high",
+        "Repeated failed logins to a network device",
+        "There were repeated failed attempts to log in to this device's admin interface.",
+        "Someone may be trying to take control of your firewall or router.",
+        "Make sure the admin interface isn't reachable from the internet, use a strong unique "
+        "password, and block the source address.",
+        sticky=True,
+    ),
+    Rule(
+        "network_intrusion_alert",
+        "detection",
+        "high",
+        "Network intrusion alert",
+        "The network sensor (Suricata) matched traffic against a high-severity attack signature.",
+        "This often means a device is being attacked or is already infected and talking to an "
+        "attacker.",
+        "Review the source and destination in the evidence. Investigate or isolate the internal "
+        "device involved.",
+        sticky=True,
+    ),
+    Rule(
+        "suspicious_network_activity",
+        "detection",
+        "medium",
+        "Suspicious network activity",
+        "The network sensor flagged traffic that looks suspicious but not clearly malicious.",
+        "It can be an early sign of an attack, or a misconfigured device.",
+        "Review the details. If the internal device is unknown or behaving oddly, investigate it.",
+        sticky=True,
+    ),
+    Rule(
+        "port_scan_detected",
+        "detection",
+        "medium",
+        "Port scan detected",
+        "One address probed many ports or devices on your network in a short time.",
+        "Scanning is how attackers find weak points before they attack.",
+        "If the source is external, make sure only the services you need are exposed. If it's "
+        "internal, find out which device is scanning and why.",
+        sticky=True,
+    ),
 ]
 
 RULES: dict[str, Rule] = {r.key: r for r in _RULES}

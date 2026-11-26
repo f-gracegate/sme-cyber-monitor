@@ -30,6 +30,10 @@ class AgentEnrolmentToken(UUIDPrimaryKey, Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     # First characters of the token, shown in the UI so people can tell tokens apart.
     token_hint: Mapped[str] = mapped_column(String(16), nullable=False)
+    # agent (computers and servers) | collector (on-premises network collector)
+    kind: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="agent", server_default="agent"
+    )
     label: Mapped[str | None] = mapped_column(String(120))
     asset_type: Mapped[str] = mapped_column(String(32), nullable=False, default="workstation")
     department_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -58,7 +62,7 @@ class Agent(UUIDPrimaryKey, Timestamps, Base):
     asset_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("assets.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    # smecm_agent | wazuh
+    # smecm_agent | wazuh | collector
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="smecm_agent")
     # Stable device id from the agent (machine id) or the Wazuh agent id.
     external_id: Mapped[str] = mapped_column(String(128), nullable=False)

@@ -38,7 +38,8 @@ _CLAIM = text("""
           FROM monitoring_checks mc
           JOIN assets a ON a.id = mc.asset_id
          WHERE mc.enabled
-           AND mc.check_type NOT IN ('endpoint_health', 'agent_heartbeat')
+           AND mc.check_type NOT IN
+               ('endpoint_health', 'agent_heartbeat', 'device_availability', 'collector_health')
            AND mc.next_run_at <= now()
            AND a.status = 'active'
            AND a.monitoring_status IN ('authorised', 'monitoring', 'degraded')

@@ -53,6 +53,18 @@ jobs:
       - run: ruff format --check .
       - run: pytest
 
+  agents:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Collector unit tests (standard library only)
+        run: python -m unittest discover -s agents/network-collector -t agents/network-collector
+      - name: Agents compile
+        run: python -m py_compile agents/endpoint/smecm_agent.py agents/network-collector/smecm_collector.py agents/wazuh/custom-smecm
+
   web:
     runs-on: ubuntu-latest
     defaults:

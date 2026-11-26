@@ -14,15 +14,23 @@ import type { Page, SecurityEvent } from "@/lib/types";
 
 const PAGE_SIZE = 50;
 
-export function EventsList({ assetId, showAsset = false }: { assetId?: string; showAsset?: boolean }) {
+export function EventsList({
+  assetId,
+  showAsset = false,
+  category,
+}: {
+  assetId?: string;
+  showAsset?: boolean;
+  category?: "endpoint" | "network";
+}) {
   const [eventType, setEventType] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<string | null>(null);
   const { data, isPending } = useQuery({
-    queryKey: useOrgKey("events", { assetId, eventType, page }),
+    queryKey: useOrgKey("events", { assetId, eventType, page, category }),
     queryFn: () =>
       api<Page<SecurityEvent>>("/endpoints/events", {
-        query: { asset_id: assetId, event_type: eventType, page, page_size: PAGE_SIZE },
+        query: { asset_id: assetId, event_type: eventType, category, page, page_size: PAGE_SIZE },
       }),
     placeholderData: keepPreviousData,
     refetchInterval: 30_000,
@@ -41,11 +49,15 @@ export function EventsList({ assetId, showAsset = false }: { assetId?: string; s
           className="sm:w-60"
         >
           <option value="">All event types</option>
-          {Object.entries(EVENT_TYPES).map(([v, l]) => (
+          {Object.entries(EVENT_TYPES)
+            .filter(([v]) =>
+              category === "network" ? v.startsWith("network.") : category === "endpoint" ? !v.startsWith("network.") : true,
+            )
+            .map(([v, l]) => (
             <option key={v} value={v}>
               {l}
-            </option>
-          ))}
+              </option>
+            ))}
         </Select>
       </div>
       {isPending ? (

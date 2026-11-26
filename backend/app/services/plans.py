@@ -11,6 +11,8 @@ class Plan:
     asset_limit: int | None
     member_limit: int | None
     features: tuple[str, ...]
+    # On-premises network collectors included (None = unlimited).
+    collector_limit: int | None = 0
 
 
 PLANS: dict[str, Plan] = {
@@ -51,10 +53,11 @@ PLANS: dict[str, Plan] = {
         (
             "Up to 50 monitored assets",
             "Expanded endpoint and server coverage",
-            "Network collector allowance",
+            "Network collector allowance (2 collectors)",
             "Advanced alerts and reports",
             "Priority support",
         ),
+        collector_limit=2,
     ),
     "enterprise": Plan(
         "enterprise",
@@ -68,6 +71,7 @@ PLANS: dict[str, Plan] = {
             "Network monitoring deployment",
             "Custom retention and SLAs",
         ),
+        collector_limit=None,
     ),
 }
 

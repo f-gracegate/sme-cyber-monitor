@@ -30,12 +30,14 @@ def is_online(agent: Agent, now: datetime | None = None) -> bool:
     return (now or datetime.now(UTC)) - agent.last_seen_at < OFFLINE_AFTER
 
 
-def ensure_agent_checks(db: Session, asset: Asset) -> dict[str, MonitoringCheck]:
+def ensure_agent_checks(
+    db: Session, asset: Asset, kinds: tuple[str, ...] = ("agent_heartbeat", "endpoint_health")
+) -> dict[str, MonitoringCheck]:
     existing = {
         c.check_type: c
         for c in db.scalars(select(MonitoringCheck).where(MonitoringCheck.asset_id == asset.id))
     }
-    for check_type in ("agent_heartbeat", "endpoint_health"):
+    for check_type in kinds:
         if check_type not in existing:
             check = MonitoringCheck(
                 organisation_id=asset.organisation_id,
@@ -67,7 +69,7 @@ def authorise_by_agent(db: Session, asset: Asset, agent: Agent, evidence: dict) 
         asset.monitoring_status = "authorised"
 
 
-def _record(db: Session, check: MonitoringCheck, outcome: Outcome, now: datetime) -> None:
+def record_check(db: Session, check: MonitoringCheck, outcome: Outcome, now: datetime) -> None:
     """Update a check; keep a run in the history only when its result changes."""
     changed = (check.last_status, check.last_summary) != (outcome.status, outcome.summary[:400])
     check.last_run_at = now
@@ -116,11 +118,11 @@ def process_heartbeat(
     checks = ensure_agent_checks(db, asset)
     emails: list[EmailJob] = []
     online = Outcome("ok", f"Online · agent {agent_version}", reachable=True)
-    _record(db, checks["agent_heartbeat"], online, now)
+    record_check(db, checks["agent_heartbeat"], online, now)
     emails += apply_issues(db, asset, "agent_heartbeat", [], evaluated=True, now=now)
 
     health = evaluate_inventory(inventory, asset.type)
-    _record(db, checks["endpoint_health"], health, now)
+    record_check(db, checks["endpoint_health"], health, now)
     emails += apply_issues(db, asset, "endpoint_health", health.issues, evaluated=True, now=now)
 
     db.flush()
@@ -207,7 +209,7 @@ def sweep_offline(db: Session, now: datetime | None = None) -> list[EmailJob]:
         .join(Asset, Asset.id == Agent.asset_id)
         .where(
             Agent.status == "active",
-            Agent.source == "smecm_agent",
+            Agent.source.in_(("smecm_agent", "collector")),
             Agent.last_seen_at < now - OFFLINE_AFTER,
             MonitoringCheck.last_status != "error",
             Asset.status == "active",
@@ -216,7 +218,7 @@ def sweep_offline(db: Session, now: datetime | None = None) -> list[EmailJob]:
     for agent, check in rows:
         asset = db.get(Asset, agent.asset_id)
         outcome = Outcome("error", f"No heartbeat since {agent.last_seen_at:%d %b %H:%M} UTC")
-        _record(db, check, outcome, now)
+        record_check(db, check, outcome, now)
         emails += apply_issues(
             db,
             asset,

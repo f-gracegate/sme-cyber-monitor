@@ -7,7 +7,7 @@ A multi-tenant SaaS platform that helps a small or medium business see what it n
 prove it is authorised to monitor it, detect problems and coordinate the response, without
 running its own security operations centre.
 
-> **Status: Phase 3 (endpoint and server monitoring) complete.** The platform covers:
+> **Status: Phase 4 (network monitoring) complete.** The platform covers:
 > - **Foundation (Milestone 1):** accounts, MFA, organisations, tenant isolation, roles and team
 >   management, an asset inventory with ownership checks, audit history and plans.
 > - **Websites and domains (Phase 2):** uptime, TLS, security headers, DNS and email-security
@@ -17,7 +17,10 @@ running its own security operations centre.
 >   detections, offline alerts and a security event log
 >   ([docs/endpoints.md](docs/endpoints.md)).
 >
-> Network monitoring, incidents, reports and the mobile app come next (see
+> - **Network (Phase 4):** on-site collectors forward firewall and router logs, Suricata and
+>   Zeek output, and device reachability ([docs/network.md](docs/network.md)).
+>
+> Incidents, reports and the mobile app come next (see
 > [docs/roadmap.md](docs/roadmap.md)).
 
 ## Quick start
@@ -55,6 +58,8 @@ docker compose down -v && docker compose up --build
 
 To try endpoint monitoring, create a token under **Endpoints → Add devices** and start a
 disposable Linux device: `SMECM_TOKEN=enr_... docker compose --profile demo up -d demo-agent`.
+For network monitoring, create a collector under **Network → Add collector** and run
+`SMECM_COLLECTOR_TOKEN=col_... docker compose --profile demo up -d demo-collector`.
 
 The `monitor` service is the worker that runs scheduled checks. Run more than one with
 `docker compose up --scale monitor=2`; they share work safely.
@@ -65,12 +70,15 @@ docker compose run --rm backend ruff check .
 cd apps/web && npm ci && npm run lint && npx next build
 ```
 
-The backend suite (106 tests) includes the release-blocking security scenarios: cross-tenant
+The backend suite (121 tests) and the collector's own tests
+(`python -m unittest discover -s agents/network-collector -t agents/network-collector`)
+include the release-blocking security scenarios: cross-tenant
 access, database-level Row-Level Security, forged organisation headers, privilege escalation,
 revoked members, refresh-token reuse, MFA replay, SSRF protection (including via redirects), and
 the finding/alert lifecycle: deduplication, auto-resolution, and the rule that missing data never
 clears a finding, plus agent enrolment, forged organisation IDs, expired tokens, malformed
-telemetry, brute-force detection and the Wazuh connector.
+telemetry, brute-force detection, the Wazuh connector, collector probes limited to authorised
+devices, and network detections.
 
 ## Repository layout
 
@@ -78,6 +86,7 @@ telemetry, brute-force detection and the Wazuh connector.
 apps/web/           Next.js 16 + TypeScript web application
 agents/endpoint/    Reference endpoint agent (single Python file, standard library only)
 agents/wazuh/       Wazuh manager integration script
+agents/network-collector/  On-premises network collector (single Python file + Dockerfile)
 backend/            FastAPI service, SQLAlchemy models, Alembic migrations, tests
 infrastructure/     Database bootstrap (least-privilege roles)
 docs/               PRD, architecture, database, API, threat model, deployment, roadmap

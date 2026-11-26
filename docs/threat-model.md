@@ -21,6 +21,7 @@ target. Status reflects Milestone 1.
 | Credential theft (integrations) | Integration keys and agent credentials stored as hashes, shown once, revocable | ✅ |
 | Supply chain | Locked dependencies, CI checks; image scanning and signed agent packages to add | Partial |
 | Ransomware / data loss | Encrypted, immutable backups with tested restore | Before launch |
+| Collector misuse / probing others | Collector only probes server-supplied authorised devices of its own organisation; results for other assets ignored; syslog accepted only from approved ranges; outbound-only | ✅ |
 | Client IP spoofing | Trusted-proxy list (`FORWARDED_ALLOW_IPS`); per-account limits don't depend on IP | ✅ Needs correct production proxy |
 
 ## Mandatory security scenarios

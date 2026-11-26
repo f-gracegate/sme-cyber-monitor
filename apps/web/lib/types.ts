@@ -392,3 +392,60 @@ export type IntegrationKey = {
 };
 
 export type AgentRelease = { version: string; filename: string; sha256: string; size_bytes: number };
+
+// --- Network (Phase 4) ----------------------------------------------------------------------
+
+export type Collector = {
+  id: string;
+  asset_id: string;
+  name: string;
+  hostname: string;
+  version: string | null;
+  status: string;
+  online: boolean;
+  last_seen_at: string | null;
+  last_ip: string | null;
+  enrolled_at: string;
+  capabilities: string[];
+  sources: { name: string; type: string; events: number; last_event_at: string | null }[];
+  queue_depth: number | null;
+  events_24h: number;
+  traffic: {
+    window_seconds: number;
+    connections: number;
+    bytes_in: number;
+    bytes_out: number;
+    top_talkers: { host: string; bytes: number }[];
+  } | null;
+};
+
+export type NetworkDevice = {
+  id: string;
+  name: string;
+  identifier: string;
+  type: string;
+  criticality: string;
+  monitoring_status: string;
+  availability: "reachable" | "unreachable" | "not_probed" | "awaiting_authorisation";
+  latency_ms: number | null;
+  last_seen_at: string | null;
+  last_checked_at: string | null;
+  open_findings: number;
+  events_24h: number;
+};
+
+export type NetworkSummary = {
+  collectors_total: number;
+  collectors_online: number;
+  collector_allowance: number | null;
+  devices_total: number;
+  devices_reachable: number;
+  devices_unreachable: number;
+  devices_not_probed: number;
+  sensor_deployed: boolean;
+  ids_alerts_24h: Record<string, number>;
+  firewall_denies_24h: number;
+  config_changes_24h: number;
+  top_signatures: { name: string; count: number; severity: Severity }[];
+  traffic: Collector["traffic"];
+};

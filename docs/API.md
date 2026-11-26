@@ -58,10 +58,15 @@ Interactive OpenAPI docs: `http://localhost:8100/api/docs` (development only).
 | Agent (device credential) | POST | `/agent/enrol` (token), `/agent/heartbeat`, `/agent/events` |
 | Agent (public) | GET | `/agent/release`, `/agent/download`, `/agent/wazuh-integration` |
 | Wazuh (integration key) | POST | `/integrations/wazuh/alerts` |
+| Network | GET | `/network/summary`, `/network/collectors`, `/network/devices` |
+| Collector (token / credential) | POST | `/collector/enrol`, `/collector/heartbeat`, `/collector/events` |
+| Collector (public) | GET | `/collector/release`, `/collector/download` |
 | Platform | GET | `/platform/organisations` (platform admins) |
 | Health | GET | `/api/health` |
 
 Agent endpoints authenticate with `Authorization: Agent <agent_id>:<secret>`. The Wazuh
 endpoint uses `Authorization: Bearer smecm_int_…`. Neither uses user sessions. The organisation
 always comes from the enrolled agent or the integration key, never from the payload, and
-unexpected fields are rejected. Network collectors (Phase 4) will follow the same pattern.
+unexpected fields are rejected. Collectors use the same `Agent` scheme with their own
+credentials; the two kinds can't use each other's endpoints. Enrolment tokens take
+`"kind": "agent" | "collector"`. `/endpoints/events` accepts `category=endpoint|network`.

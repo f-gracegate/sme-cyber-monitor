@@ -163,9 +163,22 @@ export const CHECK_TYPES: Record<string, { label: string; description: string }>
     label: "Device health",
     description: "Antivirus, firewall, encryption, updates and disk space.",
   },
+  device_availability: {
+    label: "Reachability",
+    description: "Can the on-site collector reach this device?",
+  },
+  collector_health: {
+    label: "Collector health",
+    description: "Is the collector keeping up with the logs it receives?",
+  },
 };
 
-export const AGENT_CHECK_TYPES = new Set(["agent_heartbeat", "endpoint_health"]);
+export const AGENT_CHECK_TYPES = new Set([
+  "agent_heartbeat",
+  "endpoint_health",
+  "device_availability",
+  "collector_health",
+]);
 
 export const EVENT_TYPES: Record<string, string> = {
   "authentication.failure": "Failed sign-in",
@@ -178,11 +191,30 @@ export const EVENT_TYPES: Record<string, string> = {
   "removable_media.connected": "Removable storage",
   "file_integrity.changed": "File changed",
   generic: "Other event",
+  "network.firewall_deny": "Blocked connections",
+  "network.config_change": "Configuration change",
+  "network.admin_login_failure": "Failed admin login",
+  "network.admin_login_success": "Admin login",
+  "network.vpn_login": "VPN login",
+  "network.ids_alert": "Intrusion detection",
+  "network.zeek_notice": "Zeek notice",
 };
+
+export const NETWORK_EVENT_TYPES = Object.keys(EVENT_TYPES).filter((k) => k.startsWith("network."));
+export const ENDPOINT_EVENT_TYPES = Object.keys(EVENT_TYPES).filter((k) => !k.startsWith("network."));
 
 export const AGENT_SOURCE: Record<string, string> = {
   smecm_agent: "SMECM agent",
   wazuh: "Wazuh",
+  collector: "Network collector",
+};
+
+export const CAPABILITIES: Record<string, string> = {
+  syslog_udp: "Syslog (UDP)",
+  syslog_tcp: "Syslog (TCP)",
+  suricata: "Suricata IDS",
+  zeek: "Zeek",
+  probe: "Reachability checks",
 };
 
 export const checkTypeLabel = (t: string) => CHECK_TYPES[t]?.label ?? t;
@@ -241,4 +273,5 @@ Object.assign(AUDIT_ACTIONS, {
   "endpoint.token_revoked": "Enrolment token revoked",
   "integration.key_created": "Integration key created",
   "integration.key_revoked": "Integration key revoked",
+  "network.collector_enrolled": "Network collector enrolled",
 });

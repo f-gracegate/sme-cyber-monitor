@@ -119,6 +119,7 @@ class EventBatchResult(BaseModel):
 
 
 class TokenCreate(BaseModel):
+    kind: Literal["agent", "collector"] = "agent"
     label: str | None = Field(default=None, max_length=120)
     asset_type: EnrolAssetType = "workstation"
     department_id: uuid.UUID | None = None
@@ -128,6 +129,7 @@ class TokenCreate(BaseModel):
 
 class TokenOut(ORMModel):
     id: uuid.UUID
+    kind: str
     token_hint: str
     label: str | None
     asset_type: str

@@ -121,7 +121,7 @@ def seed(demo: bool) -> None:
                 db.add(
                     Subscription(
                         organisation_id=org.id,
-                        plan_code="business",
+                        plan_code="professional",
                         status="trialing",
                         current_period_end=datetime.now(UTC) + timedelta(days=30),
                     )

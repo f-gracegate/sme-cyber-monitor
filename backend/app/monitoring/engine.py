@@ -44,7 +44,12 @@ DEFAULT_CHECKS: dict[str, list[tuple[str, int]]] = {
 }
 ALLOWED_INTERVALS = (5, 15, 30, 60, 180, 360, 720, 1440)
 # Checks fed by agents rather than run by the scheduler.
-AGENT_CHECK_TYPES = ("endpoint_health", "agent_heartbeat")
+AGENT_CHECK_TYPES = (
+    "endpoint_health",
+    "agent_heartbeat",
+    "device_availability",
+    "collector_health",
+)
 RUNNABLE_ASSET_STATES = ("authorised", "monitoring", "degraded")
 
 

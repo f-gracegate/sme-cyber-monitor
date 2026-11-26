@@ -13,6 +13,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, Header, Query, Request, Response
 from fastapi.responses import FileResponse
@@ -64,6 +65,31 @@ from app.services.audit import client_ip
 from app.services.email import send_email
 from app.services.plans import get_plan
 
+
+def check_collector_allowance(db: Session, org_id: uuid.UUID) -> None:
+    code = db.scalar(select(Subscription.plan_code).where(Subscription.organisation_id == org_id))
+    plan = get_plan(code or "starter")
+    if plan.collector_limit is None:
+        return
+    active = (
+        db.scalar(
+            select(func.count()).where(
+                Agent.organisation_id == org_id,
+                Agent.source == "collector",
+                Agent.status == "active",
+            )
+        )
+        or 0
+    )
+    if active >= plan.collector_limit:
+        raise APIError(
+            402,
+            "plan_limit_reached",
+            f"Your {plan.name} plan includes {plan.collector_limit} network collector(s). "
+            "Network monitoring is part of the Professional plan and above.",
+        )
+
+
 router = APIRouter()
 
 AGENT_VERSION = "1.0.0"
@@ -87,7 +113,7 @@ def _limit_body(request: Request, max_bytes: int) -> None:
 # --- Device-facing -------------------------------------------------------------------------
 
 
-def agent_auth(
+def device_auth(
     request: Request,
     authorization: str = Header(default=""),
     db: Session = Depends(get_db),
@@ -114,6 +140,13 @@ def agent_auth(
     return agent
 
 
+def agent_auth(agent: Agent = Depends(device_auth)) -> Agent:
+    """Endpoint agents only (collectors use /collector/*)."""
+    if agent.source != "smecm_agent":
+        raise _INVALID_AGENT
+    return agent
+
+
 @router.post("/agent/enrol", response_model=EnrolResponse, tags=["Agent"])
 def enrol(body: EnrolRequest, request: Request, db: Session = Depends(get_db)) -> EnrolResponse:
     _limit_body(request, 65536)
@@ -125,7 +158,13 @@ def enrol(body: EnrolRequest, request: Request, db: Session = Depends(get_db)) -
                 AgentEnrolmentToken.token_hash == hash_token(body.token)
             )
         )
-    if token is None or token.revoked_at or token.expires_at <= now or token.uses >= token.max_uses:
+    if (
+        token is None
+        or token.kind != "agent"
+        or token.revoked_at
+        or token.expires_at <= now
+        or token.uses >= token.max_uses
+    ):
         raise _INVALID_TOKEN
     set_tenant_context(db, org=token.organisation_id)
     inv = body.inventory.model_dump()
@@ -479,13 +518,16 @@ def create_token(
         dept = db.get(Department, body.department_id)
         if dept is None or dept.organisation_id != ctx.org_id:
             raise APIError(422, "validation_error", "Choose a department from this organisation.")
-    raw = f"enr_{new_opaque_token(24)}"
+    if body.kind == "collector":
+        check_collector_allowance(db, ctx.org_id)
+    raw = f"{'col' if body.kind == 'collector' else 'enr'}_{new_opaque_token(24)}"
     token = AgentEnrolmentToken(
         organisation_id=ctx.org_id,
+        kind=body.kind,
         token_hash=hash_token(raw),
         token_hint=raw[:10],
         label=(body.label or "").strip() or None,
-        asset_type=body.asset_type,
+        asset_type="network_device" if body.kind == "collector" else body.asset_type,
         department_id=body.department_id,
         max_uses=body.max_uses,
         created_by=ctx.user.id,
@@ -513,12 +555,15 @@ def create_token(
 
 @router.get("/endpoints/enrolment-tokens", response_model=list[TokenOut], tags=["Endpoints"])
 def list_tokens(
-    ctx: OrgContext = Depends(org_scope(Perm.MONITORING_MANAGE)), db: Session = Depends(get_db)
+    ctx: OrgContext = Depends(org_scope(Perm.MONITORING_MANAGE)),
+    db: Session = Depends(get_db),
+    kind: Literal["agent", "collector"] = "agent",
 ) -> list[TokenOut]:
     rows = db.scalars(
         select(AgentEnrolmentToken)
         .where(
             AgentEnrolmentToken.organisation_id == ctx.org_id,
+            AgentEnrolmentToken.kind == kind,
             AgentEnrolmentToken.revoked_at.is_(None),
             AgentEnrolmentToken.expires_at > datetime.now(UTC),
             AgentEnrolmentToken.uses < AgentEnrolmentToken.max_uses,
@@ -614,7 +659,11 @@ def list_endpoints(
         select(Agent, Asset, Department)
         .join(Asset, Asset.id == Agent.asset_id)
         .outerjoin(Department, Department.id == Asset.department_id)
-        .where(Agent.organisation_id == ctx.org_id, Asset.status == "active")
+        .where(
+            Agent.organisation_id == ctx.org_id,
+            Asset.status == "active",
+            Agent.source != "collector",
+        )
     )
     if asset_id:
         stmt = stmt.where(Agent.asset_id == asset_id)
@@ -637,6 +686,7 @@ def endpoint_summary(
             .where(
                 Agent.organisation_id == ctx.org_id,
                 Agent.status == "active",
+                Agent.source != "collector",
                 Asset.status == "active",
             )
         )
@@ -656,6 +706,7 @@ def endpoint_summary(
         db.scalar(
             select(func.count()).where(
                 SecurityEvent.organisation_id == ctx.org_id,
+                SecurityEvent.event_type.not_like("network.%"),
                 SecurityEvent.occurred_at >= now - timedelta(hours=24),
             )
         )
@@ -706,6 +757,7 @@ def list_events(
     db: Session = Depends(get_db),
     asset_id: uuid.UUID | None = None,
     event_type: str | None = None,
+    category: Literal["endpoint", "network"] | None = None,
     severity: list[str] | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
@@ -719,6 +771,10 @@ def list_events(
         stmt = stmt.where(SecurityEvent.asset_id == asset_id)
     if event_type:
         stmt = stmt.where(SecurityEvent.event_type == event_type)
+    if category == "network":
+        stmt = stmt.where(SecurityEvent.event_type.like("network.%"))
+    elif category == "endpoint":
+        stmt = stmt.where(SecurityEvent.event_type.not_like("network.%"))
     if severity:
         stmt = stmt.where(SecurityEvent.severity.in_(severity))
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0

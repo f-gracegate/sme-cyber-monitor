@@ -147,7 +147,7 @@ export default function EndpointsPage() {
 
       {tab === "events" ? (
         <Card padded={false}>
-          <EventsList showAsset />
+          <EventsList showAsset category="endpoint" />
         </Card>
       ) : (
         <Card padded={false}>

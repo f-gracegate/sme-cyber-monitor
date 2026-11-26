@@ -22,6 +22,11 @@ health rules and events against detection rules (`app/endpoints/`). Both feed th
 `apply_issues` path as scheduled checks. The worker also sweeps for agents that stopped
 reporting. See [endpoints.md](endpoints.md).
 
+Network telemetry (Phase 4) comes from an on-premises collector over outbound HTTPS
+(`/collector/*`). Each heartbeat returns the organisation's authorised network devices to probe.
+Probe results become reachability checks, and syslog, Suricata and Zeek events go through
+network detections (`app/network/`). See [network.md](network.md).
+
 - **Same-origin API.** The browser only talks to the Next.js origin; `/api/*` is proxied to
   FastAPI. Session cookies stay first-party, `HttpOnly`, `SameSite=Lax`, and no CORS is needed.
 - **Client-rendered workspace.** Signed-in pages render in the browser after the session is
