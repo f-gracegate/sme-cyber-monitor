@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens. Components use the semantic names (surface, border, muted, primary...)
+ * so light and dark mode only differ here.
+ */
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #e2e8f0;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #101828;
+  --text-muted: #475467;
+  --text-subtle: #667085;
+  --navy: #101828;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-soft: #eff6ff;
+  --primary-text: #1d4ed8;
+  --success: #16a34a;
+  --success-soft: #f0fdf4;
+  --success-text: #15803d;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --warning-text: #b45309;
+  --critical: #dc2626;
+  --critical-soft: #fef2f2;
+  --critical-text: #b91c1c;
+  --high: #ea580c;
+  --high-soft: #fff7ed;
+  --high-text: #c2410c;
+  --info-soft: #f0f9ff;
+  --info-text: #0369a1;
+  --ring: rgb(37 99 235 / 0.35);
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.06);
+  --sidebar: #101828;
+  --sidebar-text: #cbd5e1;
+  --sidebar-muted: #94a3b8;
+  --sidebar-active: #1e293b;
+  --sidebar-border: #1e293b;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0b1120;
+  --surface: #111827;
+  --surface-2: #1a2333;
+  --surface-3: #243045;
+  --border: #243045;
+  --border-strong: #334155;
+  --text: #f1f5f9;
+  --text-muted: #a5b4c8;
+  --text-subtle: #8191a7;
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --primary-soft: rgb(59 130 246 / 0.14);
+  --primary-text: #93c5fd;
+  --success-soft: rgb(22 163 74 / 0.15);
+  --success-text: #4ade80;
+  --warning-soft: rgb(217 119 6 / 0.16);
+  --warning-text: #fbbf24;
+  --critical-soft: rgb(220 38 38 / 0.16);
+  --critical-text: #f87171;
+  --high-soft: rgb(234 88 12 / 0.16);
+  --high-text: #fb923c;
+  --info-soft: rgb(14 165 233 / 0.14);
+  --info-text: #7dd3fc;
+  --ring: rgb(96 165 250 / 0.45);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  --sidebar: #0a0f1c;
+  --sidebar-active: #172036;
+  --sidebar-border: #172036;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
+  --color-navy: var(--navy);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-text: var(--primary-text);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-text: var(--success-text);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-text: var(--warning-text);
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+  --color-critical-text: var(--critical-text);
+  --color-high: var(--high);
+  --color-high-soft: var(--high-soft);
+  --color-high-text: var(--high-text);
+  --color-info-soft: var(--info-soft);
+  --color-info-text: var(--info-text);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-border: var(--sidebar-border);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --shadow-card: var(--shadow);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--primary-soft);
+}
