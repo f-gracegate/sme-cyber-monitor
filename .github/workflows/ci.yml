@@ -72,7 +72,7 @@ jobs:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
@@ -133,7 +133,7 @@ jobs:
           python-version: "3.13"
       - name: Python dependencies have no known vulnerabilities
         run: pip install pip-audit && pip-audit --require-hashes -r backend/requirements.lock
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
       - name: Web dependencies have no high or critical vulnerabilities
