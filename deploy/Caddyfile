@@ -1,0 +1,41 @@
+# Public entry point: automatic HTTPS (Let's Encrypt), HTTP/2 and HTTP/3, security headers.
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# The metrics endpoint is for the monitoring system on the private network only. (Caddy
+	# tries handle blocks with longer paths first, so this wins over /api/*.)
+	handle /api/metrics {
+		respond 404
+	}
+
+	# Evidence uploads are capped at 10 MB by the API; leave a little room for the form.
+	request_body {
+		max_size 12MB
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

@@ -6,6 +6,7 @@ export type User = {
   is_platform_admin: boolean;
   must_change_password: boolean;
   mfa_enabled: boolean;
+  email_verified_at: string | null;
   last_login_at: string | null;
   created_at: string;
 };
@@ -35,6 +36,8 @@ export type Organisation = {
   website: string | null;
   status: string;
   require_mfa: boolean;
+  telemetry_retention_days: number;
+  deletion_scheduled_for: string | null;
   created_at: string;
 };
 
@@ -345,6 +348,7 @@ export type Alert = {
   acknowledged_at: string | null;
   resolved_at: string | null;
   resolution_note: string | null;
+  outcome: "fixed" | "false_positive" | "expected" | "cleared" | null;
   asset: AssetRef | null;
 };
 
@@ -403,6 +407,7 @@ export type OverviewMonitoring = {
   open_incidents: number;
   overdue_tasks: number;
   neglected_findings: number;
+  limited: boolean;
 };
 
 // --- Endpoints (Phase 3) --------------------------------------------------------------------
@@ -415,7 +420,7 @@ export type Endpoint = {
   os_name: string | null;
   os_version: string | null;
   agent_version: string | null;
-  status: "active" | "revoked";
+  status: "active" | "revoked" | "reenrol_allowed";
   online: boolean;
   last_seen_at: string | null;
   last_ip: string | null;
@@ -613,3 +618,62 @@ export type ReportItem = {
 };
 
 export type ReportTypeInfo = { value: string; label: string; csv: boolean };
+
+export type SuppressionRule = {
+  id: string;
+  rule_key: string;
+  rule_title: string;
+  asset_id: string | null;
+  asset_name: string | null;
+  reason: string;
+  expires_at: string | null;
+  hits: number;
+  last_hit_at: string | null;
+  created_by_name: string | null;
+  created_at: string;
+};
+
+export type Retention = { telemetry_retention_days: number; max_days: number | null };
+
+export type DataExport = {
+  id: string;
+  status: "ready" | "failed" | "expired";
+  size_bytes: number | null;
+  sha256: string | null;
+  summary: string | null;
+  requested_by_name: string | null;
+  created_at: string;
+  expires_at: string;
+};
+
+export type PilotOrg = {
+  organisation_id: string;
+  name: string;
+  plan: string;
+  subscription: string;
+  paying: boolean;
+  assets: number;
+  assets_monitored_pct: number | null;
+  agents_enrolled: number;
+  agents_reporting_pct: number | null;
+  alerts_30d: number;
+  false_positive_pct: number | null;
+  median_minutes_to_acknowledge: number | null;
+  median_hours_to_resolve: number | null;
+  active_users_7d: number;
+  members: number;
+  feedback_count: number;
+};
+
+export type FeedbackItem = {
+  id: string;
+  kind: "idea" | "problem" | "praise" | "question";
+  message: string;
+  page: string | null;
+  rating: number | null;
+  status: "new" | "reviewed" | "done";
+  organisation_name: string | null;
+  user_name: string | null;
+  created_at: string;
+};
+

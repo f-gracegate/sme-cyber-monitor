@@ -22,3 +22,8 @@ next-env.d.ts
 .idea/
 .vscode/
 .claude/
+
+# Production secrets and backups (deploy/)
+deploy/.env.production
+deploy/secrets/
+deploy/backups/

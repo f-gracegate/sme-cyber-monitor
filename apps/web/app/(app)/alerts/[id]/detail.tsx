@@ -35,6 +35,9 @@ export function Detail() {
   const orgKey = useOrgKey();
   const [resolving, setResolving] = useState(false);
   const [note, setNote] = useState("");
+  const [outcome, setOutcome] = useState<"fixed" | "false_positive" | "expected">("fixed");
+  const [mute, setMute] = useState(false);
+  const [muteDays, setMuteDays] = useState("90");
   const [escalating, setEscalating] = useState(false);
 
   const key = [...orgKey, "alert", id];
@@ -43,8 +46,21 @@ export function Detail() {
     queryFn: () => api<AlertDetail>(`/alerts/${id}`),
   });
   const update = useMutation({
-    mutationFn: (body: { status: string; note?: string }) =>
-      api<AlertDetail>(`/alerts/${id}`, { method: "PATCH", body }),
+    mutationFn: async (body: { status: string; note?: string; outcome?: string; mute?: boolean }) => {
+      const { mute: muteToo, ...patch } = body;
+      const updated = await api<AlertDetail>(`/alerts/${id}`, { method: "PATCH", body: patch });
+      if (muteToo) {
+        await api("/suppression-rules", {
+          method: "POST",
+          body: {
+            alert_id: id,
+            reason: note.trim() || (outcome === "false_positive" ? "Not a real problem" : "Known and expected"),
+            expires_in_days: muteDays === "never" ? undefined : Number(muteDays),
+          },
+        });
+      }
+      return updated;
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(key, data);
       queryClient.invalidateQueries({ queryKey: orgKey });
@@ -161,15 +177,66 @@ export function Detail() {
             <Button variant="secondary" onClick={() => setResolving(false)}>
               Cancel
             </Button>
-            <Button loading={update.isPending} onClick={() => update.mutate({ status: "resolved", note: note || undefined })}>
+            <Button
+              loading={update.isPending}
+              onClick={() => update.mutate({ status: "resolved", note: note || undefined, outcome, mute: mute && outcome !== "fixed" })}
+            >
               Resolve alert
             </Button>
           </>
         }
       >
-        <div className="space-y-3">
+        <div className="space-y-4">
           {update.isError && <Callout tone="critical">{errorMessage(update.error)}</Callout>}
-          <Field label="What was done?" htmlFor="alert-note" optional>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-fg">What was it?</legend>
+            <div className="grid gap-2">
+              {(
+                [
+                  ["fixed", "A real problem, now fixed", "We dealt with it."],
+                  ["false_positive", "Not a real problem", "The alert was wrong. This helps us tune detection."],
+                  ["expected", "Known and expected", "It's real but fine for us (for example, handled elsewhere)."],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <label
+                  key={value}
+                  className={`flex cursor-pointer gap-3 rounded-[var(--radius-control)] border p-3 text-sm ${outcome === value ? "border-primary ring-1 ring-primary" : "border-border hover:bg-surface-2"}`}
+                >
+                  <input type="radio" name="outcome" value={value} checked={outcome === value} onChange={() => setOutcome(value)} className="mt-0.5 accent-[var(--color-primary)]" />
+                  <span>
+                    <span className="block font-medium text-fg">{label}</span>
+                    <span className="block text-[13px] text-muted">{hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {outcome !== "fixed" && alert.severity !== "critical" && (
+            <div className="rounded-[var(--radius-control)] border border-border p-3 text-sm">
+              <label className="flex items-center gap-2 font-medium text-fg">
+                <input type="checkbox" checked={mute} onChange={(e) => setMute(e.target.checked)} />
+                Don&apos;t alert about this again{alert.asset ? ` on ${alert.asset.name}` : ""}
+              </label>
+              {mute && (
+                <div className="mt-2 flex items-center gap-2 text-muted">
+                  <span>For</span>
+                  <select
+                    aria-label="Mute for"
+                    value={muteDays}
+                    onChange={(e) => setMuteDays(e.target.value)}
+                    className="rounded-md border border-border bg-surface px-2 py-1 text-sm text-fg"
+                  >
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
+                    <option value="365">a year</option>
+                    <option value="never">until I unmute it</option>
+                  </select>
+                  <span>· findings are still recorded</span>
+                </div>
+              )}
+            </div>
+          )}
+          <Field label={outcome === "fixed" ? "What was done?" : "Why?"} htmlFor="alert-note" optional>
             <Textarea id="alert-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
           </Field>
         </div>

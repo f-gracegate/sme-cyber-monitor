@@ -10,7 +10,7 @@ Estimates are engineering targets, not guaranteed dates. Phases overlap where pr
 | 4. Network monitoring (wk 15–19) | Collector, firewall/device logs, Suricata, Zeek evaluation, network dashboards | ✅ Delivered |
 | 5. Incident & risk management (wk 20–22) | Correlation, risk scoring, incidents, remediation, reports | ✅ Delivered |
 | 6. Mobile & commercial (wk 23–26) | Flutter Android/iOS, push notifications, billing (MoMo/card), onboarding | ✅ Delivered |
-| 7. Pilot & hardening (wk 27–36) | Security and performance testing, regulatory readiness, 5–10 pilot customers | Next |
+| 7. Pilot & hardening (wk 27–36) | Security and performance testing, regulatory readiness, 5–10 pilot customers | ✅ Engineering delivered; pilot to run |
 
 ## Milestone 1 deliverable
 
@@ -83,4 +83,39 @@ See [incidents.md](incidents.md).
 
 Store submission (Apple and Google developer accounts, signing keys, Firebase project, privacy
 labels) and the production Paystack account are owner tasks before the pilot.
+
+## Phase 7 deliverable
+
+- **Security testing:** an independent pre-launch code review, with all twelve findings fixed
+  and tested ([security.md](security.md)). Fixes include fail-closed configuration, safe device
+  re-enrolment, MFA brute-force protection, email verification, push-token ownership,
+  same-site redirects and staff-limited overviews. CI scans dependencies (pip-audit,
+  npm audit), secrets (gitleaks) and containers and configuration (Trivy). Python dependencies
+  are hash-pinned, and Dependabot is on.
+- **Performance testing:** a load-test harness shows dashboard p95 132 ms at about 286
+  requests/s, about 2,600 events/s ingested with no server errors, and alerts visible in under
+  a second ([performance.md](performance.md)).
+- **Recovery:** nightly encrypted backups with checksummed manifests, a guarded restore, and
+  an automated restore drill into a clean server, run in CI (security scenario 10).
+- **Operations:** a production Compose stack with Caddy (automatic HTTPS, security headers),
+  read-only non-root containers, password-protected Redis, JSON logs with request IDs,
+  Prometheus metrics, a worker heartbeat and a runbook ([operations.md](operations.md)).
+- **Regulatory readiness (Act 843 / Act 1038):**
+  - per-organisation telemetry retention within plan limits
+  - full data export
+  - owner-requested organisation erasure after a 30-day cooling-off period
+  - self-service account deletion
+  - expanded privacy notice and terms
+  - records of processing and the owner's regulatory task list
+    ([compliance.md](compliance.md))
+- **Pilot tools:**
+  - alert outcomes, including "Not a real problem", to measure false positives
+  - muting rules for known conditions (critical alerts can't be muted)
+  - an in-product feedback button
+  - a platform pilot-measurements dashboard covering every measure in the plan
+    ([pilot.md](pilot.md))
+
+Remaining before commercial launch (owner): run the pilot, the external penetration test, a
+lawyer's review, DPC registration, written CSA classification, the hosting decision, tax and
+VAT, insurance, signed agent packages, and store submissions for the mobile apps.
 

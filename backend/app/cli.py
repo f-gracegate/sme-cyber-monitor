@@ -85,6 +85,7 @@ def seed(demo: bool) -> None:
                 is_platform_admin=True,
                 must_change_password=True,
                 password_changed_at=datetime.now(UTC),
+                email_verified_at=datetime.now(UTC),
             )
             db.add(admin)
             db.flush()

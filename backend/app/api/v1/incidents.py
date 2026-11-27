@@ -15,6 +15,7 @@ from app.api.deps import OrgContext, org_scope
 from app.core.config import settings
 from app.core.db import get_db, system_context
 from app.core.errors import APIError, forbidden, not_found
+from app.core.redis import rate_limit
 from app.incidents import service
 from app.models import (
     Alert,
@@ -204,6 +205,7 @@ def create_incident(
     ctx: OrgContext = Depends(org_scope(Perm.INCIDENTS_REPORT)),
     db: Session = Depends(get_db),
 ) -> IncidentOut:
+    rate_limit(f"incident-create:{ctx.user.id}", limit=20, window_seconds=3600)
     manager = ctx.has(Perm.INCIDENTS_MANAGE)
     for asset_id in body.asset_ids:
         asset = db.get(Asset, asset_id)
@@ -490,7 +492,22 @@ async def upload_evidence(
     ctx: OrgContext = Depends(org_scope(Perm.INCIDENTS_REPORT)),
     db: Session = Depends(get_db),
 ) -> EvidenceOut:
+    rate_limit(f"evidence:{ctx.user.id}", limit=30, window_seconds=3600)
     inc = _load_incident(db, ctx, incident_id)
+    used = (
+        db.scalar(
+            select(func.coalesce(func.sum(IncidentEvidence.size_bytes), 0)).where(
+                IncidentEvidence.organisation_id == ctx.org_id
+            )
+        )
+        or 0
+    )
+    if used >= settings.evidence_quota_bytes:
+        raise APIError(
+            413,
+            "storage_quota_reached",
+            "This organisation's evidence storage is full. Contact support to extend it.",
+        )
     filename = _safe_filename(file.filename or "evidence")
     ext = ("." + filename.rsplit(".", 1)[-1].lower()) if "." in filename else ""
     if ext not in EVIDENCE_EXTENSIONS:
@@ -699,6 +716,9 @@ def create_task(
 
 def _task_notice(db: Session, ctx: OrgContext, task: RemediationTask, assignee: User) -> list:
     """Tell someone a task is theirs: in the app always, by email for urgent work."""
+    # Flush this request's own changes under normal RLS first; only the
+    # notification for another person is written with the bypass.
+    db.flush()
     with system_context(db):
         db.add(
             Notification(

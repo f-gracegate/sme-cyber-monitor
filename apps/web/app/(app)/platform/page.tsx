@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ShieldAlert } from "lucide-react";
+import { FeedbackInbox, PilotMetrics } from "@/components/platform-pilot";
 import { useSession } from "@/components/session";
 import { Badge, Callout, Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -73,6 +74,10 @@ export default function PlatformPage() {
           </Table>
         )}
       </Card>
+      <div className="mt-6 space-y-6">
+        <PilotMetrics />
+        <FeedbackInbox />
+      </div>
     </>
   );
 }

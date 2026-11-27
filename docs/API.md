@@ -55,7 +55,7 @@ Interactive OpenAPI docs: `http://localhost:8100/api/docs` (development only).
 | Enrolment | DELETE | `/endpoints/enrolment-tokens/{id}` |
 | Integrations | GET, POST | `/integrations/keys` |
 | Integrations | DELETE | `/integrations/keys/{id}` |
-| Agent (device credential) | POST | `/agent/enrol` (token), `/agent/heartbeat`, `/agent/events` |
+| Agent (device credential) | POST | `/agent/enrol` (token; a known machine needs `/endpoints/{id}/allow-reenrolment` first), `/agent/heartbeat`, `/agent/events` |
 | Agent (public) | GET | `/agent/release`, `/agent/download`, `/agent/wazuh-integration` |
 | Wazuh (integration key) | POST | `/integrations/wazuh/alerts` |
 | Network | GET | `/network/summary`, `/network/collectors`, `/network/devices` |
@@ -74,7 +74,16 @@ Interactive OpenAPI docs: `http://localhost:8100/api/docs` (development only).
 | Billing (Paystack) | POST | `/billing/webhooks/paystack` (HMAC-SHA512 signature, no session) |
 | Onboarding | GET, PUT | `/onboarding`, `/onboarding/dismissed` |
 | Mobile devices | GET, POST, DELETE | `/me/push-devices`, `/me/push-devices/{id}`, `/me/push-devices/test` (POST) |
-| Platform | GET | `/platform/organisations` (platform admins) |
+| Auth | POST | `/auth/email/verify` (token from the confirmation email), `/auth/email/resend` |
+| Muting | GET, POST, DELETE | `/suppression-rules` (`alert_id` or `rule_key`, asset or all, reason, days), `/suppression-rules/{id}` |
+| Feedback | POST | `/feedback` (idea, problem, question, praise; optional rating) |
+| Data protection | GET, PUT | `/organisations/{id}/retention` |
+| Data protection | GET, POST | `/organisations/{id}/exports`, `/organisations/{id}/exports/{export_id}/download` (owners and admins) |
+| Data protection | POST, DELETE | `/organisations/{id}/deletion` (owner, name and password; 30-day cooling-off) |
+| Account | POST | `/me/delete-account` (password) |
+| Platform | GET | `/platform/organisations`, `/platform/pilot-metrics`, `/platform/feedback` (platform admins) |
+| Platform | PATCH | `/platform/feedback/{id}` |
+| Metrics | GET | `/api/metrics` (Prometheus, bearer `METRICS_TOKEN`; blocked at the proxy) |
 | Health | GET | `/api/health` |
 
 Agent endpoints authenticate with `Authorization: Agent <agent_id>:<secret>`. The Wazuh
@@ -91,4 +100,7 @@ carries `tokens` (`access_token`, `refresh_token`, `expires_in`) instead of sett
 app sends `Authorization: Bearer <access_token>` (no CSRF header needed) and rotates with
 `POST /auth/refresh` `{"refresh_token": "…"}`. A web refresh token can't be used as a mobile
 one or the reverse, and replaying a rotated token ends the session.
+
+`PATCH /alerts/{id}` takes `outcome` (`fixed`, `false_positive`, `expected`) when resolving.
+Alerts cleared by monitoring get `cleared`.
 

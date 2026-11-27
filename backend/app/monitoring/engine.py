@@ -27,6 +27,7 @@ from app.models import (
     MonitoringCheck,
     Notification,
     NotificationPreference,
+    SuppressionRule,
     User,
 )
 from app.monitoring import checks
@@ -144,6 +145,26 @@ def _recipients(db: Session, org_id: uuid.UUID, severity: str):
             yield user, in_app, email
 
 
+def is_suppressed(db: Session, asset: Asset, rule_key: str, now: datetime) -> bool:
+    """True (and counted) when an active suppression rule mutes this alert."""
+    rule = db.scalar(
+        select(SuppressionRule)
+        .where(
+            SuppressionRule.organisation_id == asset.organisation_id,
+            SuppressionRule.rule_key == rule_key,
+            SuppressionRule.removed_at.is_(None),
+            (SuppressionRule.asset_id.is_(None)) | (SuppressionRule.asset_id == asset.id),
+            (SuppressionRule.expires_at.is_(None)) | (SuppressionRule.expires_at > now),
+        )
+        .limit(1)
+    )
+    if rule is None:
+        return False
+    rule.hits += 1
+    rule.last_hit_at = now
+    return True
+
+
 def _raise_alert(db: Session, finding: Finding, asset: Asset, now: datetime) -> list[EmailJob]:
     alert = Alert(
         organisation_id=finding.organisation_id,
@@ -163,6 +184,9 @@ def _raise_alert(db: Session, finding: Finding, asset: Asset, now: datetime) -> 
         if in_app:
             # Notifications are private to their recipient under Row-Level Security. Fanning
             # them out to the team is trusted engine work, so write them in system context.
+            # Flush this request's own changes under normal RLS first; only the
+            # notification for another person is written with the bypass.
+            db.flush()
             with system_context(db):
                 db.add(
                     Notification(
@@ -253,6 +277,8 @@ def apply_issues(
             alert.occurrences += 1
             alert.last_seen_at = now
         elif should_alert and rule.severity != "informational":
+            if is_suppressed(db, asset, rule.key, now):
+                continue  # muted by the organisation: the finding is still recorded
             emails += _raise_alert(db, finding, asset, now)
 
     if evaluated:
@@ -276,6 +302,7 @@ def apply_issues(
             ):
                 alert.status = "resolved"
                 alert.resolved_at = now
+                alert.outcome = "cleared"
                 alert.resolution_note = "Automatically resolved: the condition cleared."
 
     return emails

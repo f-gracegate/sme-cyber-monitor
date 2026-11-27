@@ -7,7 +7,7 @@ A multi-tenant SaaS platform that helps a small or medium business see what it n
 prove it is authorised to monitor it, detect problems and coordinate the response, without
 running its own security operations centre.
 
-> **Status: Phase 6 (mobile and commercial) complete.** The platform covers:
+> **Status: Phase 7 (pilot and production hardening) engineering complete.** The platform covers:
 > - **Foundation (Milestone 1):** accounts, MFA, organisations, tenant isolation, roles and team
 >   management, an asset inventory with ownership checks, audit history and plans.
 > - **Websites and domains (Phase 2):** uptime, TLS, security headers, DNS and email-security
@@ -32,7 +32,17 @@ running its own security operations centre.
 >   Paystack, with trials, renewal reminders and receipts, and new businesses get a
 >   getting-started checklist ([docs/billing.md](docs/billing.md)).
 >
-> Pilot hardening comes next (see [docs/roadmap.md](docs/roadmap.md)).
+> - **Pilot and hardening (Phase 7):** a pre-launch security review with every finding fixed,
+>   dependency, secret and container scanning in CI, hash-pinned dependencies, encrypted backups
+>   with an automated restore drill, load tests, a production deployment (Caddy, HTTPS,
+>   hardened containers, JSON logs, metrics), data-protection tools (retention, export,
+>   organisation and account deletion), and pilot tools (alert outcomes, muting, feedback, pilot
+>   measurements). See [security](docs/security.md), [operations](docs/operations.md),
+>   [compliance](docs/compliance.md), [pilot](docs/pilot.md) and
+>   [performance](docs/performance.md).
+>
+> Next: run the pilot with 5–10 businesses, and complete the owner tasks in
+> [docs/compliance.md](docs/compliance.md) before commercial launch.
 
 ## Quick start
 
@@ -82,11 +92,15 @@ cd apps/web && npm ci && npm run lint && npx next build
 cd apps/mobile && flutter analyze && flutter test
 ```
 
+Restore drill: `scripts/restore-drill.sh`. Load test:
+`docker compose exec backend python -m app.ops.loadtest`. Production deployment:
+[docs/operations.md](docs/operations.md).
+
 Payments use a simulated checkout in development (`PAYMENT_PROVIDER=sandbox`): choose a plan
 under **Settings → Subscription** and approve or decline the test payment. Pushes go to a
 development outbox (`GET /api/v1/dev/push`) until Firebase is configured.
 
-The backend suite (172 tests) and the collector's own tests
+The backend suite (198 tests) and the collector's own tests
 (`python -m unittest discover -s agents/network-collector -t agents/network-collector`)
 include the release-blocking security scenarios: cross-tenant
 access, database-level Row-Level Security, forged organisation headers, privilege escalation,
@@ -106,6 +120,8 @@ agents/wazuh/       Wazuh manager integration script
 agents/network-collector/  On-premises network collector (single Python file + Dockerfile)
 backend/            FastAPI service, SQLAlchemy models, Alembic migrations, tests
 infrastructure/     Database bootstrap (least-privilege roles)
+deploy/             Production Compose stack, Caddy, backup/restore tooling, restore drill
+scripts/            Restore drill
 docs/               PRD, architecture, database, API, threat model, deployment, roadmap
 ```
 

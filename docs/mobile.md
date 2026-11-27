@@ -6,7 +6,7 @@ workstation. It covers what owners and IT people need away from a desk:
 | Tab | What it does |
 | --- | --- |
 | Overview | Posture score and confidence, open alerts, incidents, overdue tasks, coverage, latest alerts |
-| Alerts | Open or resolved alerts by severity. The detail explains what was found, why it matters and what to do; "I'm on it" and Resolve |
+| Alerts | Open or resolved alerts by severity. The detail explains what was found, why it matters and what to do; "I'm on it" and Resolve (fixed, not a real problem, or expected) |
 | Incidents | Active, mine and all. Report an incident (everyone). Responders change status, take ownership, close with an outcome, and add timeline updates |
 | Tasks | The person's own fix and response tasks: Start, Mark done, Verify (managers) |
 | More | Workspace switcher, notification inbox, push level, app lock, sign out |

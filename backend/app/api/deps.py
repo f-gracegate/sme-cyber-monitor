@@ -143,7 +143,7 @@ def resolve_org(db: Session, auth: AuthContext, org_id: uuid.UUID, request: Requ
     if membership is None or membership.status != "active":
         raise APIError(404, "organisation_not_found", "Organisation not found.")
     organisation = db.get(Organisation, org_id)
-    if organisation is None:
+    if organisation is None or organisation.deleted_at is not None:
         raise APIError(404, "organisation_not_found", "Organisation not found.")
     if organisation.status != "active":
         raise APIError(403, "organisation_suspended", "This organisation is suspended.")

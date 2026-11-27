@@ -60,6 +60,14 @@ def create_mfa_token(user_id: uuid.UUID) -> str:
     )
 
 
+def create_email_token(user_id: uuid.UUID, email: str) -> str:
+    """Proves control of an email address. Bound to the address, so changing it voids the link."""
+    return _encode(
+        {"sub": str(user_id), "typ": "verify_email", "email": email.lower()},
+        timedelta(hours=48),
+    )
+
+
 _fernet = Fernet(settings.fernet_key)
 
 

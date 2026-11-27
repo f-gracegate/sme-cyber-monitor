@@ -22,6 +22,7 @@ from app.models.monitoring import (
     RiskScoreSnapshot,
 )
 from app.models.organisation import Department, Invitation, Membership, Organisation
+from app.models.pilot import DataExport, Feedback, SuppressionRule
 from app.models.user import AuthSession, PasswordResetToken, User
 
 __all__ = [
@@ -54,6 +55,9 @@ __all__ = [
     "PasswordResetToken",
     "RiskScoreSnapshot",
     "Subscription",
+    "DataExport",
+    "Feedback",
+    "SuppressionRule",
     "Payment",
     "PushDevice",
     "User",

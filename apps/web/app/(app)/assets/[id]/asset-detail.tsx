@@ -283,9 +283,21 @@ function VerificationCard({ asset }: { asset: AssetDetail }) {
 }
 
 function AgentCard({ assetId }: { assetId: string }) {
+  const { can } = useSession();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const orgKey = useOrgKey();
   const { data } = useQuery({
     queryKey: useOrgKey("endpoints", "asset", assetId),
     queryFn: () => api<Endpoint[]>("/endpoints", { query: { asset_id: assetId, include_revoked: true } }),
+  });
+  const allow = useMutation({
+    mutationFn: (id: string) => api<Endpoint>(`/endpoints/${id}/allow-reenrolment`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orgKey });
+      toast("success", "This device can enrol once more with a current enrolment token.");
+    },
+    onError: (e) => toast("error", errorMessage(e)),
   });
   const ep = data?.[0];
   if (!ep) return null;
@@ -297,7 +309,16 @@ function AgentCard({ assetId }: { assetId: string }) {
       <CardHeader
         title="Monitoring agent"
         description={`${AGENT_SOURCE[ep.source]}${ep.agent_version && ep.source === "smecm_agent" ? ` v${ep.agent_version}` : ""} · enrolled ${formatDateTime(ep.enrolled_at)}`}
-        action={<OnlineBadge endpoint={ep} />}
+        action={
+          <div className="flex items-center gap-2">
+            {ep.status === "revoked" && can("monitoring:manage") && ep.source !== "wazuh" && (
+              <Button size="sm" variant="secondary" loading={allow.isPending} onClick={() => allow.mutate(ep.id)}>
+                Allow re-enrolment
+              </Button>
+            )}
+            <OnlineBadge endpoint={ep} />
+          </div>
+        }
       />
       <dl className="grid gap-5 sm:grid-cols-3 lg:grid-cols-6">
         <Detail label="Last heartbeat">{timeAgo(ep.last_seen_at)}</Detail>

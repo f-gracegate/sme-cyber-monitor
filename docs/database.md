@@ -41,6 +41,16 @@ the owner role; the application uses the least-privileged `smecm_app` role
 | `payments` | Checkout attempts and paid periods: plan, amount in pesewas, channel, safe payment-method summary, receipt number, credited days. The app role cannot `DELETE` | ✅ | ✅ |
 | `push_devices` | Phones registered for push: Fernet-encrypted FCM token, SHA-256 token hash, the session that registered it. Private to the user (RLS on `user_id`) | — | ✅ |
 
+| `suppression_rules` | Muted alert kinds per organisation (rule, asset or all, reason, expiry, hit count) | ✅ | ✅ |
+| `feedback` | In-product feedback (kind, message, page, rating, triage status). Private to its author (RLS on `user_id`); the platform team reads it | — | ✅ |
+| `data_exports` | Organisation data exports (encrypted zip in object storage, SHA-256, 7-day expiry) | ✅ | ✅ |
+
+Migration 0008 adds `users.email_verified_at` (existing accounts backfilled as verified),
+`alerts.outcome`, `organisations.telemetry_retention_days` and the deletion fields
+(`deletion_requested_at`, `deletion_requested_by`, `deletion_scheduled_for`, `deleted_at`).
+Erasure deletes every organisation-scoped row except `audit_logs`, `payments`, `subscriptions`
+and `feedback` (de-linked), and keeps a pseudonymised organisation row.
+
 Migration 0007 also adds `subscriptions.last_reminder`, `organisations.onboarding_dismissed_at`,
 `auth_sessions.client` (`web` or `mobile`), `notifications.pushed_at` and
 `notification_preferences.push_min_severity`.

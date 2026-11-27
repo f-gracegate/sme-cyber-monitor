@@ -164,7 +164,12 @@ def test_bad_credentials_and_revoked_agents(owner, enrolled):
     endpoint = owner.get("/api/v1/endpoints").json()[0]
     assert owner.post(f"/api/v1/endpoints/{endpoint['id']}/revoke").status_code == 200
     assert heartbeat(enrolled).status_code == 401
-    # Re-enrolling the same machine with a fresh token brings it back on the same asset.
+    # A revoked device can't bring itself back, even with a fresh token...
+    r = enrol(new_token(owner))
+    assert r.status_code == 409 and r.json()["error"]["code"] == "device_revoked"
+    # ...until an administrator allows one re-enrolment; it then returns on the same asset.
+    r = owner.post(f"/api/v1/endpoints/{endpoint['id']}/allow-reenrolment")
+    assert r.status_code == 200 and r.json()["status"] == "reenrol_allowed"
     r = enrol(new_token(owner))
     assert r.status_code == 200
     again = owner.get("/api/v1/endpoints").json()

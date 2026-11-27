@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.db import get_db, system_context
 from app.core.errors import APIError
 from app.core.redis import rate_limit
-from app.models import PushDevice
+from app.models import AuthSession, PushDevice
 from app.schemas.common import Message
 from app.security.tokens import encrypt_secret, hash_token
 from app.services import audit, push
@@ -65,15 +65,29 @@ def register_device(
     """Register (or refresh) this phone's push token for the signed-in person."""
     rate_limit(f"push-register:{auth.user.id}", limit=30, window_seconds=3600)
     token_hash = hash_token(body.token)
-    # The same phone may have been used by someone else before. Tokens are unique per app
-    # install, so take the row over rather than letting two people receive the same pushes.
+    # The same phone may have been used by someone else before. Hand the token over only once
+    # that person's session on it has ended; otherwise anyone who learned a token could
+    # silently stop another person's security alerts.
+    now = datetime.now(UTC)
     with system_context(db):
         device = db.scalar(select(PushDevice).where(PushDevice.token_hash == token_hash))
         if device is not None and device.user_id != auth.user.id:
+            previous = db.get(AuthSession, device.session_id) if device.session_id else None
+            if (
+                previous is not None
+                and previous.revoked_at is None
+                and previous.expires_at > now
+                and device.enabled
+            ):
+                raise APIError(
+                    409,
+                    "device_in_use",
+                    "This phone is still signed in to another account. Sign that account out "
+                    "first.",
+                )
             db.delete(device)
             db.flush()
             device = None
-    now = datetime.now(UTC)
     created = device is None
     if device is None:
         device = PushDevice(

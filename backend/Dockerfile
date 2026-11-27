@@ -8,8 +8,11 @@ WORKDIR /srv
 RUN useradd --create-home --uid 10001 app && mkdir -p /data/objects && chown app /data/objects
 
 ARG INSTALL_DEV=false
-COPY requirements.txt requirements-dev.txt ./
-RUN if [ "$INSTALL_DEV" = "true" ]; then pip install -r requirements-dev.txt; else pip install -r requirements.txt; fi
+# Lock files pin every package (including transitive ones) to an exact version and hash, so a
+# tampered or substituted package fails the install. Regenerate with pip-compile (docs/security.md).
+COPY requirements*.txt requirements*.lock ./
+RUN if [ "$INSTALL_DEV" = "true" ]; then pip install --require-hashes -r requirements-dev.lock; \
+    else pip install --require-hashes -r requirements.lock; fi
 
 COPY . .
 USER app

@@ -12,6 +12,8 @@ const SECTIONS = [
   { href: "/settings/departments", label: "Departments", permission: "org:read" },
   { href: "/settings/integrations", label: "Integrations", permission: "org:update" },
   { href: "/settings/subscription", label: "Subscription", permission: "billing:read" },
+  { href: "/settings/muted-alerts", label: "Muted alerts", permission: "alerts:read" },
+  { href: "/settings/privacy", label: "Data and privacy" },
   { href: "/settings/audit", label: "Audit history", permission: "audit:read" },
 ];
 const LATER: string[] = [];

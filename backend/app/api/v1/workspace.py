@@ -75,6 +75,8 @@ class Overview(BaseModel):
     open_incidents: int
     overdue_tasks: int
     neglected_findings: int
+    # True for staff without security access: organisation-wide security detail is left out.
+    limited: bool = False
 
 
 class AlertBrief(BaseModel):
@@ -382,6 +384,39 @@ def overview(
             "open incidents and overdue fixes all lower the score."
         )
 
+    if not ctx.has(Perm.FINDINGS_READ):
+        # Staff see that the business is being looked after, not where it is weak.
+        zero = {k: 0 for k in open_sev}
+        return Overview(
+            organisation_name=ctx.organisation.name,
+            limited=True,
+            assets_total=0,
+            assets_by_category={},
+            assets_by_monitoring_status={},
+            assets_authorised=0,
+            critical_assets=0,
+            members_total=0,
+            members_with_mfa=0,
+            privileged_without_mfa=0,
+            pending_invitations=0,
+            posture_score=None,
+            posture_note="",
+            recommendations=[],
+            monitored_assets=0,
+            monitorable_assets=0,
+            assets_with_check_errors=0,
+            findings_open_by_severity=zero,
+            findings_by_status={},
+            alerts_open_by_severity=zero,
+            recent_alerts=[],
+            most_exposed_assets=[],
+            trend=[],
+            posture_components={},
+            posture_confidence=0,
+            open_incidents=0,
+            overdue_tasks=0,
+            neglected_findings=0,
+        )
     return Overview(
         monitored_assets=posture["monitored_assets"],
         monitorable_assets=posture["monitorable_assets"],

@@ -380,6 +380,34 @@ function MostExposed({ data }: { data: Overview }) {
   );
 }
 
+/** What staff without security access see: how to help, not where the business is weak. */
+function StaffOverview({ onReport }: { onReport: () => void }) {
+  return (
+    <div className="grid gap-5 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
+        <CardHeader
+          title="Spotted something suspicious?"
+          description="A strange email or text asking for a PIN or password, a pop-up you didn't expect, a lost laptop or phone, money moved that you didn't send. Report it straight away, even if you're not sure. You won't be in trouble for reporting."
+        />
+        <Button onClick={onReport}>
+          <Siren className="size-4" /> Report an incident
+        </Button>
+      </Card>
+      <Card>
+        <CardHeader title="Your part" description="Fixes and checks assigned to you, and the reports you've made." />
+        <div className="flex flex-col gap-2">
+          <ButtonLink href="/remediation" variant="secondary">
+            My tasks
+          </ButtonLink>
+          <ButtonLink href="/incidents" variant="secondary">
+            My incident reports
+          </ButtonLink>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function PostureBreakdown({ data }: { data: Overview }) {
   const parts = Object.entries(data.posture_components ?? {}).filter(([k]) => POSTURE_COMPONENTS[k]);
   if (data.posture_score === null || parts.length === 0) return null;
@@ -465,7 +493,9 @@ export default function OverviewPage() {
       />
       {reporting && <ReportIncidentDialog open onClose={() => setReporting(false)} />}
 
-      {isPending || !data ? (
+      {data?.limited ? (
+        <StaffOverview onReport={() => setReporting(true)} />
+      ) : isPending || !data ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-32" />

@@ -12,7 +12,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.config import settings
 
-_KEY = re.compile(r"^[0-9a-f-]{36}/(evidence|reports)/[0-9a-f]{32}$")
+_KEY = re.compile(r"^[0-9a-f-]{36}/(evidence|reports|exports)/[0-9a-f]{32}$")
 _fernet = Fernet(settings.fernet_key)
 
 
@@ -41,3 +41,24 @@ def get(org_id: uuid.UUID, key: str) -> bytes:
         return _fernet.decrypt(_path(key).read_bytes())
     except (OSError, InvalidToken) as exc:
         raise StorageError("Object unavailable") from exc
+
+
+def delete(org_id: uuid.UUID, key: str) -> None:
+    if not key.startswith(f"{org_id}/"):
+        raise StorageError("Object belongs to another organisation")
+    _path(key).unlink(missing_ok=True)
+
+
+def delete_organisation(org_id: uuid.UUID) -> int:
+    """Erase every stored object of one organisation (evidence, reports, exports)."""
+    root = Path(settings.storage_dir) / str(uuid.UUID(str(org_id)))
+    removed = 0
+    if root.is_dir():
+        for path in sorted(root.rglob("*"), reverse=True):
+            if path.is_file():
+                path.unlink()
+                removed += 1
+            else:
+                path.rmdir()
+        root.rmdir()
+    return removed

@@ -11,7 +11,9 @@ _INSECURE_DEFAULT_SECRET = "dev-only-insecure-secret-key-change-me"  # noqa: S10
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    environment: str = "development"
+    # Fails closed: anything other than an explicit "development" or "test" gets the strict
+    # production checks, and development-only routes (dev mailbox, sandbox payments) stay off.
+    environment: str = "production"
 
     database_url: str = "postgresql+psycopg://smecm_app:smecm_app_dev@localhost:5532/smecm"
     migration_database_url: str = (
@@ -47,6 +49,8 @@ class Settings(BaseSettings):
     # replace with an S3-compatible backend for multi-server deployments.
     storage_dir: str = "/data/objects"
     max_evidence_bytes: int = 10 * 1024 * 1024
+    # Total evidence each organisation may store.
+    evidence_quota_bytes: int = 2 * 1024 * 1024 * 1024
 
     # Mobile app sessions hold tokens in the phone's secure storage and last longer than web ones.
     mobile_refresh_token_ttl_days: int = 30
@@ -72,6 +76,20 @@ class Settings(BaseSettings):
     billing_contact_email: str = "sales@gracegate.example"
     brand_company_name: str = "GraceGate Technologies"
 
+    # Outgoing email (SMTP with STARTTLS). Required outside development.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "SME Cybersecurity Monitoring <no-reply@example.com>"
+    smtp_starttls: bool = True
+
+    # Logs: "text" for people, "json" for log collectors. Access lines are off by default.
+    log_format: str = "text"
+    log_access: bool = False
+    # Bearer token for GET /api/metrics (Prometheus). Unset = metrics endpoint disabled.
+    metrics_token: str = ""
+
     # Lets asset verification reach private addresses. Only for isolated test labs.
     allow_private_verification_targets: bool = False
 
@@ -96,6 +114,8 @@ class Settings(BaseSettings):
                 raise ValueError("DATA_ENCRYPTION_KEY is required outside development")
             if not self.cookie_secure:
                 raise ValueError("COOKIE_SECURE must be true outside development")
+            if not self.smtp_host:
+                raise ValueError("SMTP_HOST is required outside development")
             if self.payment_provider == "sandbox":
                 raise ValueError("PAYMENT_PROVIDER=sandbox is for development only")
             if self.payment_provider == "paystack" and not self.paystack_secret_key:

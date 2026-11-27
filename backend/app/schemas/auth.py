@@ -55,6 +55,10 @@ class MFAVerifyRequest(BaseModel):
     client: Client = "web"
 
 
+class EmailVerifyRequest(BaseModel):
+    token: str = Field(min_length=10, max_length=2000)
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str | None = Field(default=None, max_length=200)
 
@@ -110,6 +114,7 @@ class UserOut(ORMModel):
     is_platform_admin: bool
     must_change_password: bool
     mfa_enabled: bool
+    email_verified_at: datetime | None = None
     last_login_at: datetime | None
     created_at: datetime
 

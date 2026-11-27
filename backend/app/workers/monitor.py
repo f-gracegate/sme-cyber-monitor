@@ -13,15 +13,15 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, text
+from sqlalchemy import text
 
 from app.billing.service import sweep_subscriptions
 from app.core.db import SessionLocal
-from app.endpoints.service import EVENT_RETENTION_DAYS, sweep_offline
-from app.models import CheckRun, SecurityEvent
+from app.core.observability import configure_logging, worker_heartbeat
+from app.endpoints.service import sweep_offline
 from app.monitoring.engine import execute_check
+from app.privacy.service import prune_telemetry, run_due_erasures
 from app.reports.service import generate_monthly_reports
 from app.services.email import send_email
 from app.services.push import dispatch_pending
@@ -65,17 +65,14 @@ def claim_due(limit: int = BATCH) -> list[uuid.UUID]:
 
 
 def prune_old_runs() -> int:
+    """Apply each organisation's retention setting, and erase organisations that are due."""
     db = SessionLocal()
     db.info["rls"] = {"bypass": True}
     try:
-        cutoff = datetime.now(UTC) - timedelta(days=RUN_RETENTION_DAYS)
-        deleted = db.execute(delete(CheckRun).where(CheckRun.completed_at < cutoff)).rowcount
-        event_cutoff = datetime.now(UTC) - timedelta(days=EVENT_RETENTION_DAYS)
-        deleted += db.execute(
-            delete(SecurityEvent).where(SecurityEvent.received_at < event_cutoff)
-        ).rowcount
-        db.commit()
-        return deleted or 0
+        erased = run_due_erasures(db)
+        if erased:
+            log.info("erased %d organisation(s) after their cooling-off period", erased)
+        return prune_telemetry(db)
     finally:
         db.close()
 
@@ -125,7 +122,7 @@ def run_billing_sweep() -> int:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    configure_logging()
     logging.getLogger("httpx").setLevel(logging.WARNING)  # per-request lines are noise here
     stop = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -137,6 +134,7 @@ def main() -> None:
     with ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
         while not stop.is_set():
             try:
+                worker_heartbeat()
                 ids = claim_due()
                 if ids:
                     log.info("running %d check(s)", len(ids))

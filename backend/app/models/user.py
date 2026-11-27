@@ -24,6 +24,8 @@ class User(UUIDPrimaryKey, Timestamps, Base):
     must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Set once the person proves they own the address (verification link, invitation or reset).
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     mfa_secret_encrypted: Mapped[str | None] = mapped_column(String(512))
     mfa_pending_secret_encrypted: Mapped[str | None] = mapped_column(String(512))
     mfa_recovery_code_hashes: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)

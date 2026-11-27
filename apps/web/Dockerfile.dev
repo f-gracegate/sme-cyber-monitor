@@ -1,8 +1,10 @@
 FROM node:24-alpine
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY . .
+COPY --chown=node:node package.json package-lock.json ./
+RUN npm ci && mkdir -p .next && chown -R node:node /app
+COPY --chown=node:node . .
+# Development server runs as the unprivileged "node" user, like the production image.
+USER node
 EXPOSE 3000
 CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]

@@ -1,0 +1,54 @@
+# Restore drill: back up the running stack, restore it into a brand-new database server and
+# verify it. Used by scripts/restore-drill.sh locally and in CI.
+services:
+  backup:
+    build: ./deploy/backup
+    environment:
+      PGHOST: postgres
+      PGUSER: smecm_owner
+      PGPASSWORD: smecm_owner_dev
+      PGDATABASE: smecm
+      BACKUP_PASSPHRASE_FILE: /drill/passphrase
+      BACKUP_DIR: /backups
+      OBJECTS_DIR: /data/objects
+    volumes:
+      - objects:/data/objects:ro
+      - drill-backups:/backups
+      - drill-secrets:/drill
+    profiles: [drill]
+
+  postgres-restore:
+    # A clean server with nothing in it, standing in for disaster-recovery infrastructure.
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: smecm_owner
+      POSTGRES_PASSWORD: smecm_owner_dev
+      POSTGRES_DB: smecm
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smecm_owner -d smecm"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    profiles: [drill]
+
+  restore:
+    build: ./deploy/backup
+    environment:
+      PGHOST: postgres-restore
+      PGUSER: smecm_owner
+      PGPASSWORD: smecm_owner_dev
+      PGDATABASE: smecm
+      BACKUP_PASSPHRASE_FILE: /drill/passphrase
+      BACKUP_DIR: /backups
+      OBJECTS_DIR: /restore/objects
+    volumes:
+      - drill-backups:/backups:ro
+      - drill-secrets:/drill:ro
+      - drill-objects:/restore/objects
+    profiles: [drill]
+
+volumes:
+  drill-backups:
+  drill-secrets:
+  drill-objects:

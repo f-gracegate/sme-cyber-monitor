@@ -14,11 +14,13 @@ from app.api.deps import OrgContext, org_scope
 from app.api.v1.endpoints import (
     _INVALID_AGENT,
     _INVALID_TOKEN,
+    _check_reenrolment,
     _limit_body,
     _send,
     check_collector_allowance,
     device_auth,
 )
+from app.billing.service import ensure_can_grow
 from app.core.config import settings
 from app.core.db import get_db, set_tenant_context, system_context
 from app.core.errors import APIError
@@ -93,6 +95,10 @@ def enrol_collector(
     ):
         raise _INVALID_TOKEN
     set_tenant_context(db, org=token.organisation_id)
+    db.refresh(token, with_for_update=True)
+    if token.uses >= token.max_uses:
+        raise _INVALID_TOKEN
+    ensure_can_grow(db, token.organisation_id)
     health = body.health.model_dump(mode="json")
     hostname = health["hostname"]
 
@@ -132,8 +138,8 @@ def enrol_collector(
             db, asset, collector, {"agent": "collector", "hostname": hostname}
         )
     else:
-        if collector.status != "active":
-            check_collector_allowance(db, token.organisation_id)
+        _check_reenrolment(collector)
+        check_collector_allowance(db, token.organisation_id)
         collector.status, collector.revoked_at, collector.revoked_by = "active", None, None
     credential = new_opaque_token(32)
     collector.credential_hash = hash_token(credential)

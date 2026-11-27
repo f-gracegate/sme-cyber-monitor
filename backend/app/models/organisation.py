@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, UniqueConstraint, func, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,6 +39,15 @@ class Organisation(UUIDPrimaryKey, Timestamps, Base):
     )
     # When an admin hid the getting-started checklist.
     onboarding_dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # How long raw telemetry (security events, check runs) is kept, within the plan's limit.
+    telemetry_retention_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    # Owner-requested deletion: data is erased after a 30-day cooling-off period.
+    deletion_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deletion_requested_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    deletion_scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Department(UUIDPrimaryKey, Base):

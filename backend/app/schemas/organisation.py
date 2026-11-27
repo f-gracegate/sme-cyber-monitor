@@ -119,6 +119,8 @@ class OrganisationOut(ORMModel):
     website: str | None
     status: str
     require_mfa: bool
+    telemetry_retention_days: int = 30
+    deletion_scheduled_for: datetime | None = None
     created_at: datetime
 
 

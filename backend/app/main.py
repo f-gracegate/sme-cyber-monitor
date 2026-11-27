@@ -1,7 +1,9 @@
-import logging
+import hmac
+import time
 import uuid
 
 from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
 
 from app.api.v1 import (
@@ -15,15 +17,24 @@ from app.api.v1 import (
     network,
     onboarding,
     organisations,
+    pilot,
+    privacy,
     reports,
     workspace,
 )
 from app.core.config import settings
 from app.core.db import engine
-from app.core.errors import register_error_handlers
+from app.core.errors import APIError, register_error_handlers
+from app.core.observability import (
+    configure_logging,
+    prometheus_text,
+    record_request,
+    request_id_var,
+    worker_status,
+)
 from app.core.redis import redis_client
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+configure_logging()
 
 app = FastAPI(
     title=f"{settings.brand_product_name} API",
@@ -49,7 +60,22 @@ _SECURITY_HEADERS = {
 async def request_context(request: Request, call_next):
     incoming = request.headers.get("x-request-id", "")
     request.state.request_id = incoming[:64] if incoming else uuid.uuid4().hex
-    response = await call_next(request)
+    token = request_id_var.set(request.state.request_id)
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    finally:
+        request_id_var.reset(token)
+    route = getattr(request.scope.get("route"), "path", None)
+    # The route template (/api/v1/alerts/{alert_id}), never the raw path with IDs in it.
+    if route and not route.startswith("/api"):
+        route = "/api/v1" + route
+    record_request(
+        request.method,
+        route or "unmatched",
+        response.status_code,
+        (time.perf_counter() - started) * 1000,
+    )
     response.headers["X-Request-ID"] = request.state.request_id
     for key, value in _SECURITY_HEADERS.items():
         response.headers.setdefault(key, value)
@@ -71,6 +97,8 @@ for module in (
     billing,
     devices,
     onboarding,
+    pilot,
+    privacy,
 ):
     app.include_router(module.router, prefix="/api/v1")
 
@@ -87,4 +115,18 @@ def health() -> dict:
         redis_client.ping()
     except Exception:  # noqa: BLE001
         status["redis"] = "unavailable"
-    return {"status": "ok" if all(v == "ok" for v in status.values()) else "degraded", **status}
+    workers, age = worker_status()
+    status["worker"] = "ok" if workers and age is not None and age < 120 else "stale"
+    healthy = status["database"] == "ok" and status["redis"] == "ok"
+    return {"status": "ok" if healthy else "degraded", **status}
+
+
+@app.get("/api/metrics", include_in_schema=False)
+def metrics(request: Request) -> PlainTextResponse:
+    """Prometheus metrics. Requires METRICS_TOKEN; disabled when it isn't set."""
+    sent = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not settings.metrics_token or not hmac.compare_digest(sent, settings.metrics_token):
+        raise APIError(404, "not_found", "Not found.")
+    from app.ops.gauges import collect_gauges
+
+    return PlainTextResponse(prometheus_text(collect_gauges()), media_type="text/plain")

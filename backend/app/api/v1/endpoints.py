@@ -67,6 +67,52 @@ from app.services.email import send_email
 from app.services.plans import get_plan
 
 
+def _check_reenrolment(agent: Agent) -> None:
+    """An enrolment token must never take over or revive an existing device on its own.
+
+    Agents keep their credential and enrol only once, so a second enrolment for the same machine
+    means a reinstall, a stolen token or an impersonation attempt. An administrator has to allow
+    it first (revoke the device, then "Allow re-enrolment").
+    """
+    if agent.status == "reenrol_allowed":
+        return
+    if agent.status == "revoked":
+        raise APIError(
+            409,
+            "device_revoked",
+            "This device was removed by an administrator. Allow re-enrolment in the dashboard "
+            "first.",
+        )
+    raise APIError(
+        409,
+        "already_enrolled",
+        "This device is already enrolled. To reinstall, revoke it in the dashboard and allow "
+        "re-enrolment.",
+    )
+
+
+def plan_limit_check(db: Session, org_id: uuid.UUID) -> None:
+    """Refuse a new (or restored) asset when the plan's asset allowance is used up."""
+    plan = get_plan(
+        db.scalar(select(Subscription.plan_code).where(Subscription.organisation_id == org_id))
+        or "starter"
+    )
+    if plan.asset_limit is None:
+        return
+    active = (
+        db.scalar(
+            select(func.count()).where(Asset.organisation_id == org_id, Asset.status == "active")
+        )
+        or 0
+    )
+    if active >= plan.asset_limit:
+        raise APIError(
+            402,
+            "plan_limit_reached",
+            f"This organisation's {plan.name} plan has no room for more assets.",
+        )
+
+
 def check_collector_allowance(db: Session, org_id: uuid.UUID) -> None:
     code = db.scalar(select(Subscription.plan_code).where(Subscription.organisation_id == org_id))
     plan = get_plan(code or "starter")
@@ -151,7 +197,7 @@ def agent_auth(agent: Agent = Depends(device_auth)) -> Agent:
 @router.post("/agent/enrol", response_model=EnrolResponse, tags=["Agent"])
 def enrol(body: EnrolRequest, request: Request, db: Session = Depends(get_db)) -> EnrolResponse:
     _limit_body(request, 65536)
-    rate_limit(f"agent-enrol:{client_ip(request)}", limit=30, window_seconds=600)
+    rate_limit(f"agent-enrol:{client_ip(request)}", limit=120, window_seconds=600)
     now = datetime.now(UTC)
     with system_context(db):
         token = db.scalar(
@@ -168,6 +214,11 @@ def enrol(body: EnrolRequest, request: Request, db: Session = Depends(get_db)) -
     ):
         raise _INVALID_TOKEN
     set_tenant_context(db, org=token.organisation_id)
+    # Lock the token so parallel enrolments can't exceed its allowed uses.
+    db.refresh(token, with_for_update=True)
+    if token.uses >= token.max_uses:
+        raise _INVALID_TOKEN
+    ensure_can_grow(db, token.organisation_id)
     inv = body.inventory.model_dump()
 
     agent = db.scalar(
@@ -178,28 +229,7 @@ def enrol(body: EnrolRequest, request: Request, db: Session = Depends(get_db)) -
         )
     )
     if agent is None:
-        plan = get_plan(
-            db.scalar(
-                select(Subscription.plan_code).where(
-                    Subscription.organisation_id == token.organisation_id
-                )
-            )
-            or "starter"
-        )
-        active = (
-            db.scalar(
-                select(func.count()).where(
-                    Asset.organisation_id == token.organisation_id, Asset.status == "active"
-                )
-            )
-            or 0
-        )
-        if plan.asset_limit is not None and active >= plan.asset_limit:
-            raise APIError(
-                402,
-                "plan_limit_reached",
-                f"This organisation's {plan.name} plan has no room for more assets.",
-            )
+        plan_limit_check(db, token.organisation_id)
         asset = Asset(
             organisation_id=token.organisation_id,
             name=inv["hostname"][:200],
@@ -229,10 +259,12 @@ def enrol(body: EnrolRequest, request: Request, db: Session = Depends(get_db)) -
             {"agent": "smecm_agent", "hostname": inv["hostname"], "token": token.token_hint},
         )
     else:
+        _check_reenrolment(agent)
         asset = db.get(Asset, agent.asset_id)
-        agent.status, agent.revoked_at, agent.revoked_by = "active", None, None
         if asset.status == "archived":
+            plan_limit_check(db, token.organisation_id)
             asset.status = "active"
+        agent.status, agent.revoked_at, agent.revoked_by = "active", None, None
     credential = new_opaque_token(32)
     agent.credential_hash = hash_token(credential)
     agent.enrolled_at = now
@@ -354,7 +386,7 @@ def _integration(db: Session, authorization: str, kind: str) -> IntegrationKey:
     return record
 
 
-def _wazuh_agent(db: Session, org_id: uuid.UUID, identity: dict) -> Agent:
+def _wazuh_agent(db: Session, org_id: uuid.UUID, identity: dict) -> Agent | None:
     agent = db.scalar(
         select(Agent).where(
             Agent.organisation_id == org_id,
@@ -364,6 +396,12 @@ def _wazuh_agent(db: Session, org_id: uuid.UUID, identity: dict) -> Agent:
     )
     if agent is not None:
         return agent
+    try:
+        # New Wazuh machines count against the plan like any other asset.
+        ensure_can_grow(db, org_id)
+        plan_limit_check(db, org_id)
+    except APIError:
+        return None
     asset = Asset(
         organisation_id=org_id,
         name=identity["name"][:200],
@@ -420,7 +458,7 @@ def wazuh_alerts(
     emails: list[EmailJob] = []
     for identity, agent_events in by_agent.values():
         agent = _wazuh_agent(db, key.organisation_id, identity)
-        if agent.status != "active":
+        if agent is None or agent.status != "active":
             continue
         a, d, e = service.ingest_events(db, agent, agent_events)
         accepted, duplicates, emails = accepted + a, duplicates + d, emails + e
@@ -748,6 +786,37 @@ def revoke_agent(
             request=ctx.request,
         )
         db.commit()
+    asset = db.get(Asset, agent.asset_id)
+    dept = db.get(Department, asset.department_id) if asset.department_id else None
+    return _endpoint_out(db, agent, asset, dept, datetime.now(UTC))
+
+
+@router.post(
+    "/endpoints/{agent_id}/allow-reenrolment", response_model=EndpointOut, tags=["Endpoints"]
+)
+def allow_reenrolment(
+    agent_id: uuid.UUID,
+    ctx: OrgContext = Depends(org_scope(Perm.MONITORING_MANAGE)),
+    db: Session = Depends(get_db),
+) -> EndpointOut:
+    """Let a revoked device enrol once more (for example after reinstalling the agent)."""
+    agent = db.get(Agent, agent_id)
+    if agent is None or agent.organisation_id != ctx.org_id:
+        raise not_found("Endpoint")
+    if agent.status != "revoked":
+        raise APIError(409, "not_revoked", "Only a revoked device can be allowed to enrol again.")
+    agent.status = "reenrol_allowed"
+    audit.record(
+        db,
+        "endpoint.reenrolment_allowed",
+        actor=ctx.user,
+        organisation_id=ctx.org_id,
+        resource_type="asset",
+        resource_id=agent.asset_id,
+        details={"hostname": agent.hostname},
+        request=ctx.request,
+    )
+    db.commit()
     asset = db.get(Asset, agent.asset_id)
     dept = db.get(Department, asset.department_id) if asset.department_id else None
     return _endpoint_out(db, agent, asset, dept, datetime.now(UTC))

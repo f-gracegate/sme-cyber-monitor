@@ -88,6 +88,31 @@ def _request(url: str, timeout: float) -> Response:
             )
 
 
+_SECOND_LEVEL = {"com", "co", "org", "net", "gov", "edu", "ac", "mil", "ltd", "plc", "sch"}
+
+
+def site_of(host: str) -> str:
+    """Approximate registrable domain: example.com, example.com.gh, example.co.uk."""
+    labels = host.lower().rstrip(".").split(".")
+    if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in _SECOND_LEVEL:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
+
+
+def same_site_redirect(origin: str, target: str) -> bool:
+    """Monitoring follows redirects only within the customer's own site, on web ports.
+
+    The customer proved control of their site, not of wherever it points, so we don't probe
+    third-party hosts or unusual ports on their behalf.
+    """
+    a, b = urlsplit(origin), urlsplit(target)
+    if b.scheme not in {"http", "https"} or not b.hostname or not a.hostname:
+        return False
+    if b.port not in {None, 80, 443}:
+        return False
+    return site_of(a.hostname) == site_of(b.hostname)
+
+
 def fetch(
     url: str, *, follow_redirects: bool = True, max_redirects: int = 5, timeout: float = 10.0
 ) -> FetchResult:
@@ -99,7 +124,22 @@ def fetch(
             chain.append(resp)
             location = resp.header("location")
             if follow_redirects and resp.status_code in {301, 302, 303, 307, 308} and location:
-                current = urljoin(current, location)
+                target = urljoin(current, location)
+                if not same_site_redirect(url, target):
+                    # Not followed, but a redirect towards an internal address is still a
+                    # finding in its own right.
+                    host = urlsplit(target).hostname
+                    if host:
+                        try:
+                            resolve_public_addresses(host)
+                        except UnsafeTarget as exc:
+                            if "private or reserved" in str(exc):
+                                raise
+                            # A redirect to a name that doesn't resolve isn't a safety problem.
+                    return FetchResult(
+                        ok=True, final=resp, chain=chain, error="Redirects to another site"
+                    )
+                current = target
                 continue
             return FetchResult(ok=True, final=resp, chain=chain)
         return FetchResult(ok=False, chain=chain, error="Too many redirects")

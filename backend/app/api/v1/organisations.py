@@ -72,6 +72,12 @@ def create_organisation(
     db: Session = Depends(get_db),
 ) -> OrganisationWithRole:
     rate_limit(f"org-create:{auth.user.id}", limit=10, window_seconds=3600)
+    if auth.user.email_verified_at is None:
+        raise APIError(
+            403,
+            "email_not_verified",
+            "Confirm your email address first. We've sent you a link.",
+        )
     org_id = uuid.uuid4()
     set_tenant_context(db, org=org_id)
     org = Organisation(id=org_id, created_by=auth.user.id, **body.model_dump())

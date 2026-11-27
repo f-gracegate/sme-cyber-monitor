@@ -142,6 +142,9 @@ def notify(
         in_app_min = pref.in_app_min_severity if pref else "low"
         if in_app_min == "off" or rank < severity_rank(in_app_min):
             continue  # this person asked not to see incidents this minor
+        # Flush this request's own changes under normal RLS first; only the
+        # notification for another person is written with the bypass.
+        db.flush()
         with system_context(db):
             db.add(
                 Notification(

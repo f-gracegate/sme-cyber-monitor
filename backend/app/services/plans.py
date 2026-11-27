@@ -13,6 +13,8 @@ class Plan:
     features: tuple[str, ...]
     # On-premises network collectors included (None = unlimited).
     collector_limit: int | None = 0
+    # The longest the organisation may keep raw telemetry (security events, check runs).
+    max_retention_days: int = 30
 
 
 PLANS: dict[str, Plan] = {
@@ -43,6 +45,7 @@ PLANS: dict[str, Plan] = {
             "Risk and remediation management",
             "Email alerts and monthly reports",
         ),
+        max_retention_days=90,
     ),
     "professional": Plan(
         "professional",
@@ -58,6 +61,7 @@ PLANS: dict[str, Plan] = {
             "Priority support",
         ),
         collector_limit=2,
+        max_retention_days=180,
     ),
     "enterprise": Plan(
         "enterprise",
@@ -72,6 +76,7 @@ PLANS: dict[str, Plan] = {
             "Custom retention and SLAs",
         ),
         collector_limit=None,
+        max_retention_days=365,
     ),
 }
 

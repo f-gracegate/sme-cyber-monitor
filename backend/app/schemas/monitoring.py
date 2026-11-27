@@ -110,6 +110,7 @@ class AlertOut(ORMModel):
     acknowledged_at: datetime | None
     resolved_at: datetime | None
     resolution_note: str | None
+    outcome: str | None = None
     asset: AssetRef | None = None
 
 
@@ -130,6 +131,8 @@ class AlertDetail(AlertOut):
 class AlertUpdate(BaseModel):
     status: Literal["new", "acknowledged", "investigating", "resolved"]
     note: str | None = Field(default=None, max_length=1000)
+    # When resolving: fixed, false_positive (not a real problem) or expected (known and fine).
+    outcome: Literal["fixed", "false_positive", "expected"] | None = None
 
 
 class NotificationOut(ORMModel):

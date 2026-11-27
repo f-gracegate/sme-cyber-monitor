@@ -48,7 +48,7 @@ jobs:
             -c "GRANT USAGE ON SCHEMA public TO smecm_app;" \
             -c "ALTER DEFAULT PRIVILEGES FOR ROLE smecm_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO smecm_app;" \
             -c "ALTER DEFAULT PRIVILEGES FOR ROLE smecm_owner IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO smecm_app;"
-      - run: pip install -r requirements-dev.txt
+      - run: pip install --require-hashes -r requirements-dev.lock
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
@@ -119,3 +119,44 @@ jobs:
       - run: flutter pub get
       - name: iOS release build (unsigned)
         run: flutter build ios --release --no-codesign --dart-define=API_BASE_URL=https://api.example.invalid
+
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Python dependencies have no known vulnerabilities
+        run: pip install pip-audit && pip-audit --require-hashes -r backend/requirements.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Web dependencies have no high or critical vulnerabilities
+        working-directory: apps/web
+        run: npm audit --omit=dev --audit-level=high
+      - name: No secrets committed
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Container and configuration scan (Dockerfiles, compose, dependencies)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scanners: vuln,misconfig,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+
+
+  restore-drill:
+    # Mandatory security scenario 10: back up, restore into a clean server, verify.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/restore-drill.sh

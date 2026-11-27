@@ -1,13 +1,13 @@
 # Deployment notes
 
-Production infrastructure is Phase 7 work. These rules already apply to any non-development
-environment.
+The production stack and runbook are in [operations.md](operations.md)
+(`deploy/docker-compose.prod.yml`). These rules apply to any non-development environment.
 
 ## Required configuration (backend)
 
 | Variable | Rule |
 | --- | --- |
-| `ENVIRONMENT` | `staging` or `production` (anything other than development/test enables strict checks) |
+| `ENVIRONMENT` | Defaults to `production`. Anything other than `development`/`test` enables the strict checks |
 | `SECRET_KEY` | Random, at least 32 characters. The app refuses to start otherwise. |
 | `DATA_ENCRYPTION_KEY` | Fernet key, stored in a secret manager, separate from database backups |
 | `COOKIE_SECURE` | `true` (HTTPS only) |
@@ -25,6 +25,10 @@ environment.
 | `FCM_SERVICE_ACCOUNT_FILE`, `FCM_PROJECT_ID` | Firebase service-account key (mounted as a secret file) and project |
 | `PUSH_INCLUDE_DETAILS` | Leave `false` so lock screens show only severity and title |
 | `MOBILE_REFRESH_TOKEN_TTL_DAYS` | Default 30 |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Required: invitations, resets, verification and alerts are emailed over SMTP with STARTTLS |
+| `LOG_FORMAT`, `LOG_ACCESS` | `json` and `true` in production (one JSON line per request, with request ID) |
+| `METRICS_TOKEN` | Enables `/api/metrics` for your monitoring system |
+| `EVIDENCE_QUOTA_BYTES` | Evidence storage per organisation (default 2 GB) |
 
 API docs (`/api/docs`) and the developer mailbox are disabled outside development.
 

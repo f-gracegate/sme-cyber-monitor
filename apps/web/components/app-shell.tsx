@@ -30,7 +30,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SubscriptionBanner } from "@/components/billing-ui";
+import { DeletionBanner } from "@/components/deletion-banner";
 import { useOnboarding } from "@/components/getting-started";
+import { FeedbackButton } from "@/components/feedback-button";
 import { NotificationBell } from "@/components/notification-bell";
 import { PoweredBy, ProductMark } from "@/components/powered-by";
 import { toggleTheme } from "@/components/providers";
@@ -52,7 +54,7 @@ const NAV: { title?: string; items: NavItem[] }[] = [
   {
     items: [
       { href: "/overview", label: "Overview", icon: LayoutDashboard },
-      { href: "/getting-started", label: "Getting started", icon: Rocket, onboarding: true },
+      { href: "/getting-started", label: "Getting started", icon: Rocket, permission: "org:update", onboarding: true },
       { href: "/assets", label: "Assets", icon: Server, permission: "assets:read" },
       { href: "/endpoints", label: "Endpoints", icon: Laptop, permission: "monitoring:read" },
       { href: "/network", label: "Network", icon: Network, permission: "monitoring:read" },
@@ -341,6 +343,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="min-w-0 flex-1">
           <OrgSwitcher />
         </div>
+        <FeedbackButton />
         <NotificationBell />
         <button
           type="button"
@@ -356,6 +359,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:py-8">
+        <DeletionBanner />
         <SubscriptionBanner />
         {children}
       </main>

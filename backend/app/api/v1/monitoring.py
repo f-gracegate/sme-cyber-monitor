@@ -392,6 +392,7 @@ def update_finding(
                 resolved_at=now,
                 resolved_by=ctx.user.id,
                 resolution_note=note or f"Finding marked {body.status.replace('_', ' ')}",
+                outcome="fixed" if body.status == "resolved" else "expected",
             )
         )
     if body.status == "resolved":
@@ -524,6 +525,8 @@ def update_alert(
     if body.status == "resolved" and previous != "resolved":
         alert.resolved_at, alert.resolved_by = now, ctx.user.id
         alert.resolution_note = (body.note or "").strip() or None
+        # "Not a real problem" answers are how we measure detection accuracy in the pilot.
+        alert.outcome = body.outcome or "fixed"
     audit.record(
         db,
         "alert.updated",
@@ -535,6 +538,7 @@ def update_alert(
             "alert": alert.title,
             "from": previous,
             "to": body.status,
+            "outcome": alert.outcome if body.status == "resolved" else None,
             "note": (body.note or "").strip() or None,
         },
         request=ctx.request,

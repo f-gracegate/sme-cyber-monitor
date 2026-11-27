@@ -5,8 +5,8 @@ import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { OrgForm, toOrgForm, toOrgPayload } from "@/components/org-form";
 import { rememberOrg, useSession } from "@/components/session";
-import { Button, Card } from "@/components/ui";
-import { api } from "@/lib/api";
+import { Button, Callout, Card } from "@/components/ui";
+import { api, errorMessage } from "@/lib/api";
 import type { Organisation } from "@/lib/types";
 
 export default function OnboardingPage() {
@@ -41,7 +41,8 @@ export default function OnboardingPage() {
           </p>
         </div>
       </div>
-      <Card>
+      {!me.user.email_verified_at && <VerifyNotice email={me.user.email} />}
+      <Card className={me.user.email_verified_at ? undefined : "pointer-events-none opacity-50"}>
         <OrgForm
           initial={toOrgForm()}
           error={create.error}
@@ -59,3 +60,27 @@ export default function OnboardingPage() {
     </div>
   );
 }
+
+function VerifyNotice({ email }: { email: string }) {
+  const resend = useMutation({
+    mutationFn: () => api("/auth/email/resend", { method: "POST", org: false }),
+  });
+  return (
+    <div className="mb-5">
+      <Callout
+        tone="info"
+        title="Confirm your email first"
+        action={
+          <Button size="sm" variant="secondary" loading={resend.isPending} disabled={resend.isSuccess} onClick={() => resend.mutate()}>
+            {resend.isSuccess ? "Sent" : "Resend link"}
+          </Button>
+        }
+      >
+        We sent a link to <strong>{email}</strong>. Open it to confirm the address, then come back here to create your
+        workspace.
+        {resend.isError && <span className="mt-1 block">{errorMessage(resend.error)}</span>}
+      </Callout>
+    </div>
+  );
+}
+

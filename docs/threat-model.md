@@ -1,7 +1,7 @@
 # Threat model
 
 The platform receives security information from many businesses, which makes it a high-value
-target. Status reflects Milestone 1.
+target. Status as of Phase 7; the pre-launch review is in [security.md](security.md).
 
 | Threat | Mitigation | Status |
 | --- | --- | --- |
@@ -17,19 +17,25 @@ target. Status reflects Milestone 1.
 | Open redirect after login | `next` parameter restricted to same-site paths | ✅ |
 | Misleading score from missing data | Findings only clear after a successful run; failed or disabled checks shown as coverage gaps | ✅ |
 | Malicious agent / telemetry poisoning | Per-device hashed credentials, short-lived limited-use enrolment tokens, strict schemas (extra fields rejected), size and rate limits, idempotent events, tenant derived from enrolment | ✅ (signed agent packages before launch) |
-| Alert flooding | One open alert per finding (enforced by a unique index), occurrence counters, auto-resolution; related alerts grouped into one incident; suppression rules later | ✅ Partial |
+| Alert flooding | One open alert per finding (enforced by a unique index), occurrence counters, auto-resolution; related alerts grouped into one incident; muting rules for known conditions (never for critical), with hit counts | ✅ |
 | Malicious evidence upload | Extension allowlist, 10 MB limit, stored encrypted and never rendered: downloads are `application/octet-stream` attachments with `nosniff` and a sandbox CSP | ✅ |
 | Evidence or timeline tampering | SHA-256 recorded at upload and checked on every download; the incident timeline is append-only at the database level | ✅ |
 | Spreadsheet formula injection in CSV reports | Cells starting with `=`, `+`, `-` or `@` are neutralised | ✅ |
 | Credential theft (integrations) | Integration keys and agent credentials stored as hashes, shown once, revocable | ✅ |
-| Supply chain | Locked dependencies, CI checks; image scanning and signed agent packages to add | Partial |
-| Ransomware / data loss | Encrypted, immutable backups with tested restore | Before launch |
+| Supply chain | Hash-pinned Python dependencies (`--require-hashes`), npm lock file, pip-audit / npm audit / gitleaks / Trivy in CI, Dependabot; signed agent packages before launch | ✅ Partial |
+| Ransomware / data loss | Nightly AES-256 encrypted backups with checksums, restore that refuses to overwrite data, automated restore drill in CI; off-site immutable copies are an operations step | ✅ (off-site copy: operations) |
 | Collector misuse / probing others | Collector only probes server-supplied authorised devices of its own organisation; results for other assets ignored; syslog accepted only from approved ranges; outbound-only | ✅ |
 | Stolen phone or mobile tokens | Tokens in Keychain/Keystore (this device only, not backed up), 15-minute access tokens, rotating refresh with reuse detection, optional biometric lock, sessions revocable from the web; plain HTTP refused except to a developer machine | ✅ |
 | Sensitive data on lock screens / via push providers | Push text limited to severity, organisation and alert title (`PUSH_INCLUDE_DETAILS=false`); details are fetched after sign-in; tokens encrypted at rest; pushes stop when the phone signs out | ✅ |
 | Payment tampering (fake success, wrong amount) | Activation only after a server-side verify with Paystack; amount and currency must match the order; signed webhooks (HMAC-SHA512) re-verified; idempotent under row locks; payments can't be deleted | ✅ |
 | Card or wallet data exposure | Hosted checkout: card numbers and MoMo PINs never reach our servers; only brand/last digits are stored | ✅ |
 | Simulated payments in production | `PAYMENT_PROVIDER=sandbox` refused outside development; sandbox endpoint returns 404 otherwise | ✅ |
+| Misconfigured production (dev routes on) | Environment defaults to production; unsafe settings refuse to start; dev mailbox, sandbox payments and API docs are off outside development | ✅ |
+| MFA brute force | Wrong codes count towards lockout; 5 codes per sign-in attempt, single use; rate limits fail closed | ✅ |
+| Account pre-hijacking | Email verification before creating a workspace; reset on an unverified account clears MFA and sessions | ✅ |
+| Device impersonation via a leaked enrolment token | Known machines can't re-enrol without an admin "Allow re-enrolment"; revoked devices stay revoked; token uses locked | ✅ |
+| Monitoring abused to probe third parties | Redirects followed only within the customer's site on ports 80/443 | ✅ |
+| Platform outage unnoticed | Health with worker heartbeat, Prometheus metrics, JSON logs ([operations.md](operations.md)) | ✅ |
 | Client IP spoofing | Trusted-proxy list (`FORWARDED_ALLOW_IPS`); per-account limits don't depend on IP | ✅ Needs correct production proxy |
 
 ## Mandatory security scenarios
@@ -43,6 +49,6 @@ target. Status reflects Milestone 1.
 | 5 | Malformed telemetry | `test_endpoints.py::test_malformed_telemetry_is_rejected` |
 | 6 | Download another org's report | `test_incidents.py::test_reports_are_permissioned_and_isolated`, `test_incidents_are_isolated_between_organisations` (RLS + storage key prefix check) |
 | 7 | Revoked former employee | `test_removed_member_loses_access_immediately`, `test_suspended_member_loses_access` |
-| 8 | Event burst | Phase 3 load tests |
+| 8 | Event burst | `app.ops.loadtest` ingestion burst (50,000 events, 0 server errors) and per-device rate limits ([performance.md](performance.md)) |
 | 9 | Unauthorised privilege escalation | `test_privilege_escalation_is_refused`, role matrix test |
-| 10 | Backup restored into a clean environment | Before launch |
+| 10 | Backup restored into a clean environment | `scripts/restore-drill.sh` (CI job `restore-drill`) |

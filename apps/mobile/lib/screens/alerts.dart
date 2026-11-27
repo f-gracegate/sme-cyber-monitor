@@ -128,11 +128,12 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   final _loader = GlobalKey<LoaderState<AlertDetail>>();
   bool _busy = false;
 
-  Future<void> _setStatus(String status, {String? note}) async {
+  Future<void> _setStatus(String status, {String? note, String? outcome}) async {
     setState(() => _busy = true);
     try {
       await widget.session.api.patch('/alerts/${widget.alertId}', {
         'status': status,
+        'outcome': ?outcome,
         'note': ?note,
       });
       if (!mounted) return;
@@ -146,14 +147,51 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   }
 
   Future<void> _resolve() async {
+    final outcome = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(
+                'What was it?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            for (final (value, label, hint) in const [
+              ('fixed', 'A real problem, now fixed', 'We dealt with it.'),
+              (
+                'false_positive',
+                'Not a real problem',
+                'The alert was wrong. This helps us tune detection.',
+              ),
+              ('expected', 'Known and expected', "It's real but fine for us."),
+            ])
+              ListTile(
+                title: Text(label),
+                subtitle: Text(hint),
+                onTap: () => Navigator.pop(context, value),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (outcome == null || !mounted) return;
     final note = await promptText(
       context,
       title: 'Resolve alert',
-      label: 'What was done? (optional)',
+      label: outcome == 'fixed' ? 'What was done? (optional)' : 'Why? (optional)',
       action: 'Resolve',
       optional: true,
     );
-    if (note != null) await _setStatus('resolved', note: note.isEmpty ? null : note);
+    if (note != null) {
+      await _setStatus('resolved', note: note.isEmpty ? null : note, outcome: outcome);
+    }
   }
 
   @override

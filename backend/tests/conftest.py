@@ -85,13 +85,27 @@ class Api:
         return self.client.delete(url, headers=self._headers(kw.pop("headers", None)), **kw)
 
 
-def register(email: str, name: str = "Test User", password: str = PASSWORD, **extra) -> Api:
+def register(
+    email: str, name: str = "Test User", password: str = PASSWORD, verify: bool = True, **extra
+) -> Api:
     api = Api()
     r = api.post(
         "/api/v1/auth/register", {"email": email, "password": password, "full_name": name, **extra}
     )
     assert r.status_code == 201, r.text
+    if verify and "invitation_token" not in extra:
+        verify_email(api, email)
     return api
+
+
+def verify_email(api: Api, email: str) -> None:
+    """Follow the confirmation link from the development mailbox."""
+    from app.services.email import read_dev_mailbox
+
+    mail = next(m for m in read_dev_mailbox() if m["to"] == email and "verify-email" in m["body"])
+    token = mail["body"].split("verify-email?token=")[1].split()[0]
+    r = api.post("/api/v1/auth/email/verify", {"token": token})
+    assert r.status_code == 200, r.text
 
 
 def create_org(api: Api, name: str = "Acme Ltd") -> str:

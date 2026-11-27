@@ -149,6 +149,8 @@ class Alert(UUIDPrimaryKey, Base):
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
     )
+    # How it ended: fixed | false_positive | expected | cleared (resolved by monitoring)
+    outcome: Mapped[str | None] = mapped_column(String(20))
     resolution_note: Mapped[str | None] = mapped_column(String(1000))
 
 

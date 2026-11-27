@@ -2,17 +2,19 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pyotp
+import redis
 from fastapi import APIRouter, Depends, Request, Response
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import REFRESH_COOKIE, AuthContext, get_auth, get_auth_allow_pending
 from app.core.config import settings
 from app.core.db import get_db, set_tenant_context, system_context
 from app.core.errors import APIError
-from app.core.redis import rate_limit
+from app.core.redis import consume_mfa_token, mfa_attempt_allowed, rate_limit, redis_client
 from app.models import AuthSession, Invitation, Membership, Organisation, PasswordResetToken, User
 from app.schemas.auth import (
+    EmailVerifyRequest,
     InvitationAcceptRequest,
     InvitationPreview,
     LoginRequest,
@@ -40,6 +42,7 @@ from app.security.passwords import (
 from app.security.rbac import ROLE_LABELS, Role
 from app.security.tokens import (
     create_access_token,
+    create_email_token,
     create_mfa_token,
     decode_token,
     encrypt_secret,
@@ -66,6 +69,33 @@ from app.services.email import send_email
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 _INVALID_LOGIN = APIError(401, "invalid_credentials", "Incorrect email/username or password.")
+_LOCKED = APIError(
+    423,
+    "account_locked",
+    "Too many failed attempts. This account is temporarily locked. "
+    "Try again later or reset your password.",
+)
+
+
+def _unknown_key(ident: str) -> str:
+    return f"login-unknown:{hash_token(ident)}"
+
+
+def _unknown_locked(ident: str) -> bool:
+    try:
+        return int(redis_client.get(_unknown_key(ident)) or 0) >= settings.login_max_failures
+    except redis.RedisError:
+        return False
+
+
+def _count_unknown_failure(ident: str) -> None:
+    try:
+        pipe = redis_client.pipeline()
+        pipe.incr(_unknown_key(ident))
+        pipe.expire(_unknown_key(ident), settings.login_lockout_minutes * 60)
+        pipe.execute()
+    except redis.RedisError:
+        pass
 
 
 def _policy_or_raise(password: str, email: str, username: str | None) -> None:
@@ -163,10 +193,62 @@ def register(
         request=request,
     )
     if invitation is not None:
+        # The invitation link went to this address, which proves the person controls it.
         _accept_invitation(db, user, invitation, request)
+        user.email_verified_at = datetime.now(UTC)
     start_session(db, user, request, response)
     db.commit()
+    if invitation is None:
+        _send_verification(user)
     return build_me(db, user)
+
+
+def _send_verification(user: User) -> None:
+    link = f"{settings.web_base_url}/verify-email?token={create_email_token(user.id, user.email)}"
+    send_email(
+        user.email,
+        f"Confirm your email for {settings.brand_product_name}",
+        f"Hello {user.full_name or ''},\n\nConfirm this is your email address to finish setting "
+        f"up your account (the link works for 48 hours):\n{link}\n\n"
+        "If you didn't create an account, you can ignore this email.",
+    )
+
+
+@router.post("/email/verify", response_model=Message)
+def verify_email(
+    body: EmailVerifyRequest, request: Request, db: Session = Depends(get_db)
+) -> Message:
+    rate_limit(f"verify-email:{client_ip(request)}", limit=30, window_seconds=3600)
+    claims = decode_token(body.token, "verify_email")
+    invalid = APIError(400, "invalid_verification", "This link is invalid or has expired.")
+    if claims is None:
+        raise invalid
+    user = db.get(User, uuid.UUID(claims["sub"]))
+    if user is None or user.email.lower() != claims.get("email"):
+        raise invalid
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(UTC)
+        set_tenant_context(db, user=user.id)
+        audit.record(
+            db,
+            "user.email_verified",
+            actor=user,
+            resource_type="user",
+            resource_id=user.id,
+            request=request,
+        )
+        db.commit()
+    return Message(message="Email confirmed.")
+
+
+@router.post("/email/resend", response_model=Message)
+def resend_verification(
+    auth: AuthContext = Depends(get_auth_allow_pending),
+) -> Message:
+    rate_limit(f"verify-resend:{auth.user.id}", limit=3, window_seconds=3600)
+    if auth.user.email_verified_at is None:
+        _send_verification(auth.user)
+    return Message(message="Verification email sent.")
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -174,20 +256,26 @@ def login(
     body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
 ) -> LoginResponse:
     rate_limit(f"login-ip:{client_ip(request)}", limit=30, window_seconds=300)
-    rate_limit(f"login-id:{body.identifier.strip().lower()}", limit=10, window_seconds=300)
+    rate_limit(
+        f"login-id:{body.identifier.strip().lower()}",
+        limit=10,
+        window_seconds=300,
+        fail_closed=True,
+    )
 
     user = find_user_by_identifier(db, body.identifier)
     now = datetime.now(UTC)
 
     if user is not None and user.locked_until and user.locked_until > now:
-        raise APIError(
-            423,
-            "account_locked",
-            "Too many failed attempts. This account is temporarily locked. "
-            "Try again later or reset your password.",
-        )
+        raise _LOCKED
 
+    ident = body.identifier.strip().lower()
+    if user is None and _unknown_locked(ident):
+        raise _LOCKED
     if user is None or not verify_password(body.password, user.password_hash):
+        if user is None:
+            # Unknown accounts "lock" exactly like real ones, so a 423 reveals nothing.
+            _count_unknown_failure(ident)
         if user is not None:
             set_tenant_context(db, user=user.id)
             user.failed_login_count += 1
@@ -237,15 +325,32 @@ def mfa_verify(
     claims = decode_token(body.mfa_token, "mfa")
     if claims is None:
         raise APIError(401, "mfa_token_expired", "Your sign-in attempt expired. Sign in again.")
-    rate_limit(f"mfa:{claims['sub']}", limit=10, window_seconds=300)
+    rate_limit(f"mfa:{claims['sub']}", limit=10, window_seconds=300, fail_closed=True)
+    expired = APIError(401, "mfa_token_expired", "Your sign-in attempt expired. Sign in again.")
     user = db.get(User, uuid.UUID(claims["sub"]))
     if user is None or user.status != "active" or not user.mfa_enabled:
-        raise APIError(401, "mfa_token_expired", "Your sign-in attempt expired. Sign in again.")
+        raise expired
+    if user.locked_until and user.locked_until > datetime.now(UTC):
+        raise APIError(
+            423,
+            "account_locked",
+            "Too many failed attempts. Try again later or reset your password.",
+        )
+    # Each password step allows a handful of code attempts and works once.
+    if not mfa_attempt_allowed(claims["jti"]):
+        raise expired
 
     set_tenant_context(db, user=user.id)
     used_recovery = False
     if not verify_totp(user, body.code):
         if not use_recovery_code(user, body.code):
+            # Wrong codes count towards the same lockout as wrong passwords.
+            user.failed_login_count += 1
+            if user.failed_login_count >= settings.login_max_failures:
+                user.locked_until = datetime.now(UTC) + timedelta(
+                    minutes=settings.login_lockout_minutes
+                )
+                user.failed_login_count = 0
             audit.record(
                 db,
                 "auth.mfa_failed",
@@ -258,6 +363,7 @@ def mfa_verify(
             raise APIError(401, "invalid_mfa_code", "That code is not valid. Try again.")
         used_recovery = True
 
+    consume_mfa_token(claims["jti"])
     tokens = start_session(db, user, request, response, body.client)
     details = {"mfa": "recovery_code" if used_recovery else "totp"}
     if body.client != "web":
@@ -449,6 +555,20 @@ def reset_password(
     user.failed_login_count = 0
     user.locked_until = None
     record.used_at = now
+    if user.email_verified_at is None:
+        # Whoever registered this address before its owner may have turned on MFA to lock the
+        # owner out. The reset proves the owner controls the email, so start them clean.
+        user.mfa_enabled = False
+        user.mfa_secret_encrypted = None
+        user.mfa_pending_secret_encrypted = None
+        user.mfa_recovery_code_hashes = []
+        user.email_verified_at = now
+    # Any other reset links still out there stop working.
+    db.execute(
+        update(PasswordResetToken)
+        .where(PasswordResetToken.user_id == user.id, PasswordResetToken.used_at.is_(None))
+        .values(used_at=now)
+    )
     revoke_user_sessions(db, user, "password_reset")
     set_tenant_context(db, user=user.id)
     audit.record(
@@ -525,6 +645,8 @@ def mfa_disable(
     user.mfa_secret_encrypted = None
     user.mfa_recovery_code_hashes = []
     user.mfa_last_used_step = None
+    # Weaker sign-in protection: end every other session so they sign in again.
+    revoke_user_sessions(db, user, "mfa_disabled", except_session_id=auth.session.id)
     audit.record(
         db,
         "user.mfa_disabled",

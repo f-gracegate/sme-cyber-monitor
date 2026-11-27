@@ -156,11 +156,18 @@ def test_device_registration_is_private_to_its_owner(phone, owner):
     assert analyst.get("/api/v1/me/push-devices").json() == []
     assert analyst.delete(f"/api/v1/me/push-devices/{device['id']}").status_code == 404
 
-    # The analyst signs in on the same phone: the token moves to them.
+    # Someone else can't claim a token while its owner is still signed in on that phone...
     p2 = Phone()
     p2.login("analyst@acme.example.com")
+    r = p2.post(
+        "/api/v1/me/push-devices",
+        {"platform": "ios", "token": "fcm-token-0123456789abcdef"},
+    )
+    assert r.status_code == 409 and r.json()["error"]["code"] == "device_in_use"
+    # ...but once the owner signs out, the next person on the phone takes it over.
+    phone.post("/api/v1/auth/logout")
     p2.register_device()
-    assert phone.get("/api/v1/me/push-devices").json() == []
+    assert len(p2.get("/api/v1/me/push-devices").json()) == 1
 
 
 def test_push_token_is_encrypted_at_rest(phone, system_db):
