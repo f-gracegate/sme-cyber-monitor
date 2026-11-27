@@ -356,7 +356,7 @@ export function StatCard({
           </span>
         )}
       </div>
-      <p className="text-[28px] leading-none font-semibold tracking-tight text-fg">{value}</p>
+      <p className="font-heading text-[28px] leading-none font-semibold tracking-tight text-fg">{value}</p>
       {hint && <p className="text-xs text-subtle">{hint}</p>}
     </Card>
   );

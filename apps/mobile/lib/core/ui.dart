@@ -26,9 +26,22 @@ ThemeData buildTheme(Brightness brightness) {
     seedColor: Brand.primary,
     brightness: brightness,
   ).copyWith(primary: brightness == Brightness.light ? Brand.primary : null);
+  // House fonts: Poppins for text, Montserrat for headings and big numbers.
+  final text = ThemeData(brightness: brightness, fontFamily: 'Poppins').textTheme;
+  TextStyle? heading(TextStyle? s) => s?.copyWith(fontFamily: 'Montserrat');
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
+    fontFamily: 'Poppins',
+    textTheme: text.copyWith(
+      displayLarge: heading(text.displayLarge),
+      displayMedium: heading(text.displayMedium),
+      displaySmall: heading(text.displaySmall),
+      headlineLarge: heading(text.headlineLarge),
+      headlineMedium: heading(text.headlineMedium),
+      headlineSmall: heading(text.headlineSmall),
+      titleLarge: heading(text.titleLarge),
+    ),
     scaffoldBackgroundColor: brightness == Brightness.light ? const Color(0xFFF8FAFC) : null,
     appBarTheme: const AppBarTheme(centerTitle: false),
     cardTheme: CardThemeData(

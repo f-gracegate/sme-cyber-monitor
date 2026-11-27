@@ -40,7 +40,7 @@ def render_receipt(payment: Payment, org: Organisation) -> bytes:
     )
     width = doc.width
     plan = get_plan(payment.plan_code)
-    # The built-in PDF fonts have no cedi sign, so use the ISO code.
+    # Poppins (the text font) has no cedi sign, so amounts use the ISO code.
     amount = f"GHS {payment.amount_minor / 100:,.2f}"
     story = [
         Paragraph("Payment receipt", H1),

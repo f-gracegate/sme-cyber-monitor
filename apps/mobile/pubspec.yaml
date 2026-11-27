@@ -92,3 +92,24 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+  # House fonts for every GraceGate product (SIL Open Font License, see assets/fonts/OFL-*).
+  # Bundled, so the app never fetches fonts at run time.
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins_400Regular.ttf
+        - asset: assets/fonts/Poppins_500Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins_600SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins_700Bold.ttf
+          weight: 700
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat_500Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Montserrat_600SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Montserrat_700Bold.ttf
+          weight: 700

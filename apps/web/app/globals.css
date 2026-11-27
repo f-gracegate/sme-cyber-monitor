@@ -111,8 +111,12 @@
   --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-border: var(--sidebar-border);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Only two typefaces: Poppins for text (and codes, with tabular figures), Montserrat for
+     headings. */
+  /* Poppins has no cedi sign (₵); Montserrat (latin-ext) supplies it. */
+  --font-sans: var(--font-poppins), var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-montserrat), var(--font-poppins), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-poppins), var(--font-montserrat), ui-sans-serif, sans-serif;
   --radius-card: 14px;
   --radius-control: 10px;
   --shadow-card: var(--shadow);
@@ -127,6 +131,20 @@ body {
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
+}
+
+/* Codes, tokens and checksums: Poppins with fixed-width figures. */
+code,
+pre,
+.font-mono {
+  font-variant-numeric: tabular-nums slashed-zero;
 }
 
 :focus-visible {

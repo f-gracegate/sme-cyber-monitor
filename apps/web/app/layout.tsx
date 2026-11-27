@@ -1,10 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Montserrat, Poppins } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { brand } from "@/lib/brand";
 import "./globals.css";
 
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+// House fonts for every GraceGate product: Poppins for text, Montserrat for headings.
+// next/font self-hosts them, so browsers never contact Google.
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
+  subsets: ["latin", "latin-ext"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: { default: brand.productName, template: `%s · ${brand.productName}` },
@@ -24,7 +37,7 @@ const themeScript = `try{if(localStorage.getItem('smecm-theme')==='dark')documen
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en-GH" className={`${inter.variable} h-full`} suppressHydrationWarning>
+    <html lang="en-GH" className={`${poppins.variable} ${montserrat.variable} h-full`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

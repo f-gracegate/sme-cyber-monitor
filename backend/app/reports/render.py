@@ -23,6 +23,7 @@ from reportlab.platypus import (
 )
 
 from app.core.config import settings
+from app.reports import fonts
 from app.reports.content import ReportContent
 
 NAVY = colors.HexColor("#101828")
@@ -36,6 +37,7 @@ _styles = getSampleStyleSheet()
 H1 = ParagraphStyle(
     "h1",
     parent=_styles["Title"],
+    fontName=fonts.HEADING,
     fontSize=20,
     leading=24,
     textColor=NAVY,
@@ -45,6 +47,7 @@ H1 = ParagraphStyle(
 H2 = ParagraphStyle(
     "h2",
     parent=_styles["Heading2"],
+    fontName=fonts.HEADING,
     fontSize=13,
     leading=16,
     textColor=NAVY,
@@ -54,6 +57,7 @@ H2 = ParagraphStyle(
 BODY = ParagraphStyle(
     "body",
     parent=_styles["BodyText"],
+    fontName=fonts.TEXT,
     fontSize=9.5,
     leading=13,
     textColor=colors.HexColor("#1F2937"),
@@ -61,10 +65,10 @@ BODY = ParagraphStyle(
 SMALL = ParagraphStyle("small", parent=BODY, fontSize=8, leading=10, textColor=MUTED)
 CELL = ParagraphStyle("cell", parent=BODY, fontSize=8, leading=10)
 CELL_HEAD = ParagraphStyle(
-    "cellhead", parent=CELL, textColor=colors.white, fontName="Helvetica-Bold"
+    "cellhead", parent=CELL, textColor=colors.white, fontName=fonts.TEXT_BOLD
 )
 KPI_VALUE = ParagraphStyle(
-    "kpi", parent=BODY, fontSize=15, leading=18, textColor=NAVY, fontName="Helvetica-Bold"
+    "kpi", parent=BODY, fontSize=15, leading=18, textColor=NAVY, fontName=fonts.HEADING_BOLD
 )
 
 
@@ -131,9 +135,21 @@ def _chart(points: list[tuple[str, int]], width: float):
     plot.yValueAxis.valueSteps = [0, 25, 50, 75, 100]
     plot.xValueAxis.valueMin, plot.xValueAxis.valueMax = 0, max(1, len(points) - 1)
     plot.xValueAxis.visibleLabels = False
+    plot.yValueAxis.labels.fontName = fonts.TEXT
+    plot.xValueAxis.labels.fontName = fonts.TEXT
     drawing.add(plot)
-    drawing.add(String(30, 4, points[0][0], fontSize=7, fillColor=MUTED))
-    drawing.add(String(width - 20, 4, points[-1][0], fontSize=7, fillColor=MUTED, textAnchor="end"))
+    drawing.add(String(30, 4, points[0][0], fontName=fonts.TEXT, fontSize=7, fillColor=MUTED))
+    drawing.add(
+        String(
+            width - 20,
+            4,
+            points[-1][0],
+            fontName=fonts.TEXT,
+            fontSize=7,
+            fillColor=MUTED,
+            textAnchor="end",
+        )
+    )
     return drawing
 
 
@@ -155,7 +171,7 @@ def to_pdf(content: ReportContent, report_type: str) -> bytes:
 
     def footer(canvas, doc_):
         canvas.saveState()
-        canvas.setFont("Helvetica", 7.5)
+        canvas.setFont(fonts.TEXT, 7.5)
         canvas.setFillColor(MUTED)
         canvas.drawString(
             16 * mm,
@@ -183,6 +199,7 @@ def to_pdf(content: ReportContent, report_type: str) -> bytes:
                 ListFlowable(
                     [ListItem(Paragraph(_escape(b), BODY), leftIndent=10) for b in section.bullets],
                     bulletType="bullet",
+                    bulletFontName=fonts.TEXT,
                     start="•",
                     leftIndent=10,
                 )
