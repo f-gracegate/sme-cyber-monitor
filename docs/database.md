@@ -38,6 +38,13 @@ the owner role; the application uses the least-privileged `smecm_app` role
 | `remediation_tasks` | Fix, containment and recovery tasks, owner, due date, verification method | ✅ | ✅ |
 | `reports` | Generated reports (type, period, format); the file is encrypted in object storage | ✅ | ✅ |
 
+| `payments` | Checkout attempts and paid periods: plan, amount in pesewas, channel, safe payment-method summary, receipt number, credited days. The app role cannot `DELETE` | ✅ | ✅ |
+| `push_devices` | Phones registered for push: Fernet-encrypted FCM token, SHA-256 token hash, the session that registered it. Private to the user (RLS on `user_id`) | — | ✅ |
+
+Migration 0007 also adds `subscriptions.last_reminder`, `organisations.onboarding_dismissed_at`,
+`auth_sessions.client` (`web` or `mobile`), `notifications.pushed_at` and
+`notification_preferences.push_min_severity`.
+
 `risk_score_snapshots` also stores the score components and a confidence value (migration 0006).
 
 `audit_logs` grants the application `INSERT` and `SELECT` only. `UPDATE`, `DELETE` and `TRUNCATE`
@@ -45,7 +52,7 @@ are revoked, and a test asserts it.
 
 ## Planned (later phases)
 
-`monitoring_profiles`, `usage_records`, `detection_rules`,
+`monitoring_profiles`, `usage_records`, `invoices` (VAT invoices once registered), `detection_rules`,
 `event_envelopes`, `event_sources`, `api_keys`, `alert_rules`,
 `data_retention_policies`, `asset_discovery_jobs`.
 

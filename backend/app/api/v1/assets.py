@@ -7,6 +7,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import OrgContext, org_scope
+from app.billing.service import ensure_can_grow
 from app.core.db import get_db
 from app.core.errors import APIError, not_found
 from app.core.redis import rate_limit
@@ -195,6 +196,7 @@ def create_asset(
     ctx: OrgContext = Depends(org_scope(Perm.ASSETS_WRITE)),
     db: Session = Depends(get_db),
 ) -> AssetDetail:
+    ensure_can_grow(db, ctx.org_id)
     plan_code = db.scalar(
         select(Subscription.plan_code).where(Subscription.organisation_id == ctx.org_id)
     )

@@ -159,19 +159,90 @@ export type Plan = {
   code: string;
   name: string;
   monthly_price_ghs: number | null;
+  annual_price_ghs: number | null;
   asset_limit: number | null;
   member_limit: number | null;
+  collector_limit: number | null;
   features: string[];
 };
 
+export type SubscriptionStatus = "trialing" | "active" | "past_due" | "expired" | "cancelled";
+
 export type Subscription = {
   plan: Plan;
-  status: string;
-  billing_period: string;
+  status: SubscriptionStatus;
+  billing_period: "monthly" | "annual";
   current_period_end: string | null;
+  grace_until: string | null;
+  days_left: number | null;
   assets_used: number;
   members_used: number;
+  collectors_used: number;
   available_plans: Plan[];
+  payment_provider: string;
+  has_paid: boolean;
+  annual_months_charged: number;
+  contact_email: string;
+};
+
+export type PaymentChannel = "mobile_money" | "card";
+
+export type Payment = {
+  id: string;
+  reference: string;
+  plan_code: string;
+  plan_name: string;
+  billing_period: "monthly" | "annual";
+  amount_minor: number;
+  currency: string;
+  channel: PaymentChannel;
+  status: "pending" | "success" | "failed" | "abandoned";
+  failure_reason: string | null;
+  payment_method: { brand?: string; last4?: string; network?: string; phone?: string };
+  receipt: string | null;
+  credit_days: number;
+  period_start: string | null;
+  period_end: string | null;
+  paid_at: string | null;
+  created_at: string;
+};
+
+export type CheckoutResult = {
+  reference: string;
+  authorization_url: string;
+  amount_minor: number;
+  currency: string;
+};
+
+export type OnboardingStep = {
+  id: string;
+  title: string;
+  description: string;
+  done: boolean;
+  optional: boolean;
+  href: string | null;
+  action_label: string | null;
+};
+
+export type Onboarding = {
+  steps: OnboardingStep[];
+  completed: number;
+  required: number;
+  required_done: number;
+  complete: boolean;
+  dismissed: boolean;
+};
+
+export type PushDevice = {
+  id: string;
+  platform: "android" | "ios";
+  device_name: string | null;
+  app_version: string | null;
+  enabled: boolean;
+  this_device: boolean;
+  created_at: string;
+  last_seen_at: string;
+  last_error: string | null;
 };
 
 export type PlatformOrganisation = {
@@ -300,6 +371,7 @@ export type NotificationList = { items: AppNotification[]; unread: number };
 export type NotificationPreferences = {
   email_min_severity: string;
   in_app_min_severity: string;
+  push_min_severity: string;
 };
 
 export type OverviewMonitoring = {

@@ -69,6 +69,11 @@ Interactive OpenAPI docs: `http://localhost:8100/api/docs` (development only).
 | Remediation | POST, PATCH | `/remediation-tasks`, `/remediation-tasks/{id}` |
 | Reports | GET | `/reports/types`, `/reports`, `/reports/{id}/download` |
 | Reports | POST | `/reports` (type, format, period up to one year) |
+| Billing | GET | `/billing/subscription`, `/billing/payments`, `/billing/payments/{id}/receipt` (PDF) |
+| Billing | POST | `/billing/checkout` (owners; plan, `monthly`/`annual`, `mobile_money`/`card`), `/billing/payments/{reference}/verify` |
+| Billing (Paystack) | POST | `/billing/webhooks/paystack` (HMAC-SHA512 signature, no session) |
+| Onboarding | GET, PUT | `/onboarding`, `/onboarding/dismissed` |
+| Mobile devices | GET, POST, DELETE | `/me/push-devices`, `/me/push-devices/{id}`, `/me/push-devices/test` (POST) |
 | Platform | GET | `/platform/organisations` (platform admins) |
 | Health | GET | `/api/health` |
 
@@ -78,3 +83,12 @@ always comes from the enrolled agent or the integration key, never from the payl
 unexpected fields are rejected. Collectors use the same `Agent` scheme with their own
 credentials; the two kinds can't use each other's endpoints. Enrolment tokens take
 `"kind": "agent" | "collector"`. `/endpoints/events` accepts `category=endpoint|network`.
+
+### Mobile sign-in
+
+`POST /auth/login` and `POST /auth/mfa/verify` accept `"client": "mobile"`. The response then
+carries `tokens` (`access_token`, `refresh_token`, `expires_in`) instead of setting cookies. The
+app sends `Authorization: Bearer <access_token>` (no CSRF header needed) and rotates with
+`POST /auth/refresh` `{"refresh_token": "…"}`. A web refresh token can't be used as a mobile
+one or the reverse, and replaying a rotated token ends the session.
+

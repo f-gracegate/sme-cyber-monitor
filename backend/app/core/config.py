@@ -48,6 +48,30 @@ class Settings(BaseSettings):
     storage_dir: str = "/data/objects"
     max_evidence_bytes: int = 10 * 1024 * 1024
 
+    # Mobile app sessions hold tokens in the phone's secure storage and last longer than web ones.
+    mobile_refresh_token_ttl_days: int = 30
+
+    # Push notifications. "log" keeps them in a development outbox; "fcm" sends through Firebase
+    # Cloud Messaging (Android and, via APNs, iOS) using a service-account JSON key.
+    push_provider: str = "log"
+    fcm_project_id: str = ""
+    fcm_service_account_file: str = ""
+    # Push text appears on lock screens and passes through Google/Apple, so by default it only
+    # names the severity and alert title; details are fetched in the app after sign-in.
+    push_include_details: bool = False
+
+    # Payments. "sandbox" simulates checkout for development and tests; "paystack" takes Mobile
+    # Money (MTN, Telecel, AirtelTigo) and cards in Ghana cedis.
+    payment_provider: str = "sandbox"
+    paystack_secret_key: str = ""
+    paystack_base_url: str = "https://api.paystack.co"
+    # Days of service kept after a paid period ends, while reminders go out.
+    billing_grace_days: int = 7
+    # Annual billing charges this many months for twelve.
+    annual_months_charged: int = 10
+    billing_contact_email: str = "sales@gracegate.example"
+    brand_company_name: str = "GraceGate Technologies"
+
     # Lets asset verification reach private addresses. Only for isolated test labs.
     allow_private_verification_targets: bool = False
 
@@ -72,6 +96,10 @@ class Settings(BaseSettings):
                 raise ValueError("DATA_ENCRYPTION_KEY is required outside development")
             if not self.cookie_secure:
                 raise ValueError("COOKIE_SECURE must be true outside development")
+            if self.payment_provider == "sandbox":
+                raise ValueError("PAYMENT_PROVIDER=sandbox is for development only")
+            if self.payment_provider == "paystack" and not self.paystack_secret_key:
+                raise ValueError("PAYSTACK_SECRET_KEY is required when PAYMENT_PROVIDER=paystack")
         return self
 
 

@@ -26,6 +26,8 @@ from app.schemas.auth import (
     PasswordChangeRequest,
     PasswordForgotRequest,
     PasswordResetRequest,
+    RefreshRequest,
+    RefreshResponse,
     RegisterRequest,
 )
 from app.schemas.common import Message
@@ -54,6 +56,7 @@ from app.services.auth import (
     revoke_user_sessions,
     set_auth_cookies,
     start_session,
+    token_pair,
     totp_uri,
     use_recovery_code,
     verify_totp,
@@ -213,12 +216,18 @@ def login(
         db.commit()
         return LoginResponse(status="mfa_required", mfa_token=create_mfa_token(user.id))
 
-    start_session(db, user, request, response)
+    tokens = start_session(db, user, request, response, body.client)
     audit.record(
-        db, "auth.login", actor=user, resource_type="user", resource_id=user.id, request=request
+        db,
+        "auth.login",
+        actor=user,
+        resource_type="user",
+        resource_id=user.id,
+        details={"client": body.client} if body.client != "web" else None,
+        request=request,
     )
     db.commit()
-    return LoginResponse(status="ok", me=build_me(db, user))
+    return LoginResponse(status="ok", me=build_me(db, user), tokens=tokens)
 
 
 @router.post("/mfa/verify", response_model=LoginResponse)
@@ -249,23 +258,33 @@ def mfa_verify(
             raise APIError(401, "invalid_mfa_code", "That code is not valid. Try again.")
         used_recovery = True
 
-    start_session(db, user, request, response)
+    tokens = start_session(db, user, request, response, body.client)
+    details = {"mfa": "recovery_code" if used_recovery else "totp"}
+    if body.client != "web":
+        details["client"] = body.client
     audit.record(
         db,
         "auth.login",
         actor=user,
         resource_type="user",
         resource_id=user.id,
-        details={"mfa": "recovery_code" if used_recovery else "totp"},
+        details=details,
         request=request,
     )
     db.commit()
-    return LoginResponse(status="ok", me=build_me(db, user))
+    return LoginResponse(status="ok", me=build_me(db, user), tokens=tokens)
 
 
-@router.post("/refresh", response_model=Message)
-def refresh(request: Request, response: Response, db: Session = Depends(get_db)) -> Message:
-    token = request.cookies.get(REFRESH_COOKIE)
+@router.post("/refresh", response_model=RefreshResponse)
+def refresh(
+    request: Request,
+    response: Response,
+    body: RefreshRequest | None = None,
+    db: Session = Depends(get_db),
+) -> RefreshResponse:
+    """Rotate the refresh token. Web: from the cookie. Mobile: from the request body."""
+    from_body = bool(body and body.refresh_token)
+    token = body.refresh_token if from_body else request.cookies.get(REFRESH_COOKIE)
     if not token:
         raise APIError(401, "not_authenticated", "Please sign in to continue.")
     token_hash = hash_token(token)
@@ -296,13 +315,19 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_db))
         clear_auth_cookies(response)
         raise APIError(401, "session_expired", "Please sign in again.")
 
+    if from_body != (session.client == "mobile"):
+        # A mobile token presented as a cookie, or the reverse, is not how our clients behave.
+        raise APIError(401, "session_expired", "Please sign in again.")
     new_token = new_opaque_token()
     session.previous_token_hash = token_hash
     session.refresh_token_hash = hash_token(new_token)
     session.last_used_at = now
     db.commit()
-    set_auth_cookies(response, create_access_token(user.id, session.id), new_token)
-    return Message(message="refreshed")
+    access = create_access_token(user.id, session.id)
+    if from_body:
+        return RefreshResponse(message="refreshed", tokens=token_pair(access, new_token))
+    set_auth_cookies(response, access, new_token)
+    return RefreshResponse(message="refreshed")
 
 
 @router.post("/logout", response_model=Message)

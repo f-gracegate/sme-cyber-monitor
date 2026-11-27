@@ -20,7 +20,7 @@ export default function OnboardingPage() {
     onSuccess: async (org) => {
       rememberOrg(org.id);
       await queryClient.invalidateQueries({ queryKey: ["me"] });
-      router.replace("/overview");
+      router.replace("/getting-started");
     },
   });
 

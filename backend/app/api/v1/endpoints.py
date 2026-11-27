@@ -21,6 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import OrgContext, org_scope
+from app.billing.service import ensure_can_grow
 from app.core.config import settings
 from app.core.db import get_db, set_tenant_context, system_context
 from app.core.errors import APIError, not_found
@@ -514,6 +515,7 @@ def create_token(
     ctx: OrgContext = Depends(org_scope(Perm.MONITORING_MANAGE)),
     db: Session = Depends(get_db),
 ) -> TokenCreated:
+    ensure_can_grow(db, ctx.org_id)
     if body.department_id:
         dept = db.get(Department, body.department_id)
         if dept is None or dept.organisation_id != ctx.org_id:

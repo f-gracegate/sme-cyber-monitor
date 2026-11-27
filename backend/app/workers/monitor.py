@@ -17,12 +17,14 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, text
 
+from app.billing.service import sweep_subscriptions
 from app.core.db import SessionLocal
 from app.endpoints.service import EVENT_RETENTION_DAYS, sweep_offline
 from app.models import CheckRun, SecurityEvent
 from app.monitoring.engine import execute_check
 from app.reports.service import generate_monthly_reports
 from app.services.email import send_email
+from app.services.push import dispatch_pending
 
 log = logging.getLogger("app.workers.monitor")
 
@@ -102,6 +104,26 @@ def run_scheduled_reports() -> int:
         db.close()
 
 
+def send_pushes() -> int:
+    """Turn new in-app notifications into phone pushes."""
+    db = SessionLocal()
+    db.info["rls"] = {"bypass": True}
+    try:
+        return dispatch_pending(db)
+    finally:
+        db.close()
+
+
+def run_billing_sweep() -> int:
+    """Move subscriptions through trial/active/past due/expired and send renewal reminders."""
+    db = SessionLocal()
+    db.info["rls"] = {"bypass": True}
+    try:
+        return sweep_subscriptions(db)
+    finally:
+        db.close()
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)  # per-request lines are noise here
@@ -119,10 +141,16 @@ def main() -> None:
                 if ids:
                     log.info("running %d check(s)", len(ids))
                     list(pool.map(execute_check, ids))
+                pushed = send_pushes()
+                if pushed:
+                    log.info("sent %d push notification(s)", pushed)
                 if time.monotonic() - last_sweep > 60:
                     check_offline_agents()
                     last_sweep = time.monotonic()
                 if time.monotonic() - last_prune > 3600:
+                    reminders = run_billing_sweep()
+                    if reminders:
+                        log.info("sent %d billing email(s)", reminders)
                     created = run_scheduled_reports()
                     if created:
                         log.info("generated %d monthly report(s)", created)

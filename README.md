@@ -7,7 +7,7 @@ A multi-tenant SaaS platform that helps a small or medium business see what it n
 prove it is authorised to monitor it, detect problems and coordinate the response, without
 running its own security operations centre.
 
-> **Status: Phase 5 (incident and risk management) complete.** The platform covers:
+> **Status: Phase 6 (mobile and commercial) complete.** The platform covers:
 > - **Foundation (Milestone 1):** accounts, MFA, organisations, tenant isolation, roles and team
 >   management, an asset inventory with ownership checks, audit history and plans.
 > - **Websites and domains (Phase 2):** uptime, TLS, security headers, DNS and email-security
@@ -26,7 +26,13 @@ running its own security operations centre.
 >   (including a monthly executive summary) can be produced
 >   ([docs/incidents.md](docs/incidents.md)).
 >
-> The mobile app and billing come next (see [docs/roadmap.md](docs/roadmap.md)).
+> - **Mobile and commercial (Phase 6):** Android and iOS companion apps for alert triage,
+>   incidents and tasks, with push notifications and an optional biometric lock
+>   ([docs/mobile.md](docs/mobile.md)). Plans are paid with Mobile Money or card through
+>   Paystack, with trials, renewal reminders and receipts, and new businesses get a
+>   getting-started checklist ([docs/billing.md](docs/billing.md)).
+>
+> Pilot hardening comes next (see [docs/roadmap.md](docs/roadmap.md)).
 
 ## Quick start
 
@@ -73,9 +79,14 @@ The `monitor` service is the worker that runs scheduled checks. Run more than on
 docker compose run --rm backend pytest
 docker compose run --rm backend ruff check .
 cd apps/web && npm ci && npm run lint && npx next build
+cd apps/mobile && flutter analyze && flutter test
 ```
 
-The backend suite (121 tests) and the collector's own tests
+Payments use a simulated checkout in development (`PAYMENT_PROVIDER=sandbox`): choose a plan
+under **Settings → Subscription** and approve or decline the test payment. Pushes go to a
+development outbox (`GET /api/v1/dev/push`) until Firebase is configured.
+
+The backend suite (172 tests) and the collector's own tests
 (`python -m unittest discover -s agents/network-collector -t agents/network-collector`)
 include the release-blocking security scenarios: cross-tenant
 access, database-level Row-Level Security, forged organisation headers, privilege escalation,
@@ -89,6 +100,7 @@ devices, and network detections.
 
 ```
 apps/web/           Next.js 16 + TypeScript web application
+apps/mobile/        Flutter companion app for Android and iOS
 agents/endpoint/    Reference endpoint agent (single Python file, standard library only)
 agents/wazuh/       Wazuh manager integration script
 agents/network-collector/  On-premises network collector (single Python file + Dockerfile)
@@ -100,8 +112,8 @@ docs/               PRD, architecture, database, API, threat model, deployment, 
 ## Technology
 
 Next.js 16 (App Router, TypeScript, Tailwind CSS 4) · Python 3.13 · FastAPI · SQLAlchemy 2 ·
-Alembic · PostgreSQL 17 with Row-Level Security · Redis 7 · Docker. Android and iOS apps
-(Flutter) arrive in Phase 6.
+Alembic · PostgreSQL 17 with Row-Level Security · Redis 7 · Docker · Flutter 3.47 (Android and
+iOS) · Firebase Cloud Messaging · Paystack (Mobile Money and card).
 
 ## Branding
 

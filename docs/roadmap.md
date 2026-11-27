@@ -9,8 +9,8 @@ Estimates are engineering targets, not guaranteed dates. Phases overlap where pr
 | 3. Endpoint & server monitoring (wk 9–14) | Wazuh evaluation, agent enrolment, health, event ingestion, detection rules, endpoint screens | ✅ Delivered |
 | 4. Network monitoring (wk 15–19) | Collector, firewall/device logs, Suricata, Zeek evaluation, network dashboards | ✅ Delivered |
 | 5. Incident & risk management (wk 20–22) | Correlation, risk scoring, incidents, remediation, reports | ✅ Delivered |
-| 6. Mobile & commercial (wk 23–26) | Flutter Android/iOS, push notifications, billing (MoMo/card), onboarding | Next |
-| 7. Pilot & hardening (wk 27–36) | Security and performance testing, regulatory readiness, 5–10 pilot customers | |
+| 6. Mobile & commercial (wk 23–26) | Flutter Android/iOS, push notifications, billing (MoMo/card), onboarding | ✅ Delivered |
+| 7. Pilot & hardening (wk 27–36) | Security and performance testing, regulatory readiness, 5–10 pilot customers | Next |
 
 ## Milestone 1 deliverable
 
@@ -59,3 +59,28 @@ combines findings, monitoring coverage, device health, remediation timeliness an
 incidents, and it reports a confidence level. Seven report types are available as PDF, five
 of them also as CSV. An executive summary is generated and emailed on the 1st of each month.
 See [incidents.md](incidents.md).
+
+## Phase 6 deliverable
+
+- **Mobile app** (Flutter, one codebase for Android and iOS) for alert triage, incidents,
+  assigned tasks and the notification inbox. Sign-in uses the same accounts with MFA and
+  temporary-password changes. Tokens live in the Keychain / Android Keystore, and an optional
+  Face ID / fingerprint lock is available. Staff can report incidents from their phone. CI
+  builds Android and iOS on every push.
+- **Push notifications** through Firebase Cloud Messaging (APNs for iOS). They follow the same
+  audience rules as in-app notifications, with a per-person "push me about" level (default high
+  and critical). Lock-screen text names only the severity and alert title. Pushes stop when the
+  phone signs out.
+- **Billing**: monthly or yearly (two months free) prepaid plans, paid with Mobile Money (MTN,
+  Telecel, AirtelTigo) or card through Paystack's hosted checkout. Payments are verified on the
+  server and signed webhooks are checked. Plan changes credit unused time, and downgrades are
+  checked against usage. Each payment gets a PDF receipt. Trials and paid plans move through
+  past-due (7-day grace) to expired, with reminders 7, 3 and 1 day before the end. Expired
+  organisations keep their data and monitoring but can't add assets, people or devices.
+- **Onboarding**: a getting-started checklist that follows the business onboarding journey
+  (profile, first asset, ownership proof, first results, team, MFA, then the optional agent,
+  phone and plan). It appears on the overview and in the navigation until it is done or hidden.
+
+Store submission (Apple and Google developer accounts, signing keys, Firebase project, privacy
+labels) and the production Paystack account are owner tasks before the pilot.
+

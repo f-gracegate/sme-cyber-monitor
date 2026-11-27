@@ -7,10 +7,13 @@ from sqlalchemy import text
 from app.api.v1 import (
     assets,
     auth,
+    billing,
+    devices,
     endpoints,
     incidents,
     monitoring,
     network,
+    onboarding,
     organisations,
     reports,
     workspace,
@@ -65,6 +68,9 @@ for module in (
     incidents,
     reports,
     workspace,
+    billing,
+    devices,
+    onboarding,
 ):
     app.include_router(module.router, prefix="/api/v1")
 

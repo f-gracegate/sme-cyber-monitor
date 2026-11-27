@@ -56,6 +56,8 @@ class AuthSession(UUIDPrimaryKey, Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_reason: Mapped[str | None] = mapped_column(String(64))
     user_agent: Mapped[str | None] = mapped_column(String(400))
+    # web (httpOnly cookies) | mobile (tokens held in the device's secure storage)
+    client: Mapped[str] = mapped_column(String(16), nullable=False, default="web")
     ip_address: Mapped[str | None] = mapped_column(String(64))
 
 

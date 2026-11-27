@@ -23,11 +23,14 @@ import {
   Inbox,
   Laptop,
   Network,
+  Rocket,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { SubscriptionBanner } from "@/components/billing-ui";
+import { useOnboarding } from "@/components/getting-started";
 import { NotificationBell } from "@/components/notification-bell";
 import { PoweredBy, ProductMark } from "@/components/powered-by";
 import { toggleTheme } from "@/components/providers";
@@ -35,12 +38,21 @@ import { useSession } from "@/components/session";
 import { Avatar, cn } from "@/components/ui";
 import { api } from "@/lib/api";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; permission?: string; soon?: boolean };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  permission?: string;
+  soon?: boolean;
+  /** Shown only while the getting-started checklist is unfinished. */
+  onboarding?: boolean;
+};
 
 const NAV: { title?: string; items: NavItem[] }[] = [
   {
     items: [
       { href: "/overview", label: "Overview", icon: LayoutDashboard },
+      { href: "/getting-started", label: "Getting started", icon: Rocket, onboarding: true },
       { href: "/assets", label: "Assets", icon: Server, permission: "assets:read" },
       { href: "/endpoints", label: "Endpoints", icon: Laptop, permission: "monitoring:read" },
       { href: "/network", label: "Network", icon: Network, permission: "monitoring:read" },
@@ -69,6 +81,9 @@ const NAV: { title?: string; items: NavItem[] }[] = [
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { can, me } = useSession();
+  const onboarding = useOnboarding();
+  const showOnboarding =
+    pathname === "/getting-started" || (!!onboarding && !onboarding.dismissed && !onboarding.complete);
   return (
     <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Main">
       {NAV.map((section, i) => (
@@ -80,7 +95,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           )}
           <ul className="space-y-0.5">
             {section.items
-              .filter((item) => !item.permission || can(item.permission))
+              .filter((item) => (!item.permission || can(item.permission)) && (!item.onboarding || showOnboarding))
               .map((item) => {
                 const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 const Icon = item.icon;
@@ -99,6 +114,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                     >
                       <Icon className={cn("size-[18px]", active ? "text-blue-400" : "")} aria-hidden />
                       <span className="flex-1">{item.label}</span>
+                      {item.onboarding && onboarding && (
+                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-sidebar-text tabular-nums">
+                          {onboarding.required_done}/{onboarding.required}
+                        </span>
+                      )}
                       {item.soon && (
                         <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-sidebar-muted">
                           Soon
@@ -335,7 +355,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <UserMenu />
       </header>
 
-      <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:py-8">{children}</main>
+      <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:py-8">
+        <SubscriptionBanner />
+        {children}
+      </main>
     </div>
   );
 }

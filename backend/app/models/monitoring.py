@@ -168,6 +168,8 @@ class Notification(UUIDPrimaryKey, Base):
     body: Mapped[str] = mapped_column(String(1000), nullable=False)
     link: Mapped[str | None] = mapped_column(String(300))
     emailed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Set once the push dispatcher has handled this notification (sent or skipped).
+    pushed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -185,6 +187,7 @@ class NotificationPreference(UUIDPrimaryKey, Timestamps, Base):
     # critical | high | medium | low | off
     email_min_severity: Mapped[str] = mapped_column(String(16), nullable=False, default="high")
     in_app_min_severity: Mapped[str] = mapped_column(String(16), nullable=False, default="low")
+    push_min_severity: Mapped[str] = mapped_column(String(16), nullable=False, default="high")
 
 
 class RiskScoreSnapshot(UUIDPrimaryKey, Base):

@@ -348,3 +348,14 @@ Object.assign(AUDIT_ACTIONS, {
   "report.generated": "Report generated",
   "report.downloaded": "Report downloaded",
 });
+
+// --- Mobile, billing and onboarding -----------------------------------------------------------
+
+Object.assign(AUDIT_ACTIONS, {
+  "billing.checkout_started": "Checkout started",
+  "billing.payment_succeeded": "Payment received",
+  "user.push_device_registered": "Phone registered for notifications",
+  "user.push_device_removed": "Phone removed from notifications",
+  "organisation.onboarding_dismissed": "Getting-started checklist hidden",
+  "organisation.onboarding_shown": "Getting-started checklist shown",
+});

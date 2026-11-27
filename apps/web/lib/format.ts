@@ -41,3 +41,8 @@ export function initials(name: string) {
   if (parts.length === 0) return "?";
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }
+
+/** Ghana cedis from pesewas, e.g. 35000 → "GH₵350.00". */
+export function formatCedis(minor: number) {
+  return `GH₵${(minor / 100).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}

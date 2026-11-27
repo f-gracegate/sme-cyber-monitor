@@ -15,6 +15,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useState } from "react";
+import { GettingStartedCard } from "@/components/getting-started";
 import { ReportIncidentDialog } from "@/components/report-incident-dialog";
 import Link from "next/link";
 import { useSession, useOrgKey } from "@/components/session";
@@ -472,6 +473,7 @@ export default function OverviewPage() {
         </div>
       ) : (
         <div className="space-y-6">
+          <GettingStartedCard />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             <StatCard
               label="Security posture score"

@@ -1,4 +1,4 @@
-"""Organisation-wide views: overview, audit log, billing and the platform console."""
+"""Organisation-wide views: overview, audit log and the platform console."""
 
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -31,7 +31,7 @@ from app.schemas.asset import AuditEntryOut
 from app.schemas.common import Page
 from app.security.rbac import Perm, Role
 from app.services.email import read_dev_mailbox
-from app.services.plans import PLANS, get_plan
+from app.services.push import read_dev_pushes
 
 router = APIRouter(tags=["Workspace"])
 
@@ -450,64 +450,6 @@ def audit_logs(
     )
 
 
-class PlanOut(BaseModel):
-    code: str
-    name: str
-    monthly_price_ghs: int | None
-    asset_limit: int | None
-    member_limit: int | None
-    features: list[str]
-
-
-class SubscriptionOut(BaseModel):
-    plan: PlanOut
-    status: str
-    billing_period: str
-    current_period_end: datetime | None
-    assets_used: int
-    members_used: int
-    available_plans: list[PlanOut]
-
-
-def _plan_out(code: str) -> PlanOut:
-    p = get_plan(code)
-    return PlanOut(
-        code=p.code,
-        name=p.name,
-        monthly_price_ghs=p.monthly_price_ghs,
-        asset_limit=p.asset_limit,
-        member_limit=p.member_limit,
-        features=list(p.features),
-    )
-
-
-@router.get("/billing/subscription", response_model=SubscriptionOut)
-def subscription(
-    ctx: OrgContext = Depends(org_scope(Perm.BILLING_READ)), db: Session = Depends(get_db)
-) -> SubscriptionOut:
-    sub = db.scalar(select(Subscription).where(Subscription.organisation_id == ctx.org_id))
-    if sub is None:
-        raise APIError(404, "not_found", "No subscription found.")
-    assets = (
-        db.scalar(
-            select(func.count()).where(
-                Asset.organisation_id == ctx.org_id, Asset.status == "active"
-            )
-        )
-        or 0
-    )
-    members = db.scalar(select(func.count()).where(Membership.organisation_id == ctx.org_id)) or 0
-    return SubscriptionOut(
-        plan=_plan_out(sub.plan_code),
-        status=sub.status,
-        billing_period=sub.billing_period,
-        current_period_end=sub.current_period_end,
-        assets_used=assets,
-        members_used=members,
-        available_plans=[_plan_out(c) for c in PLANS],
-    )
-
-
 class PlatformOrganisation(BaseModel):
     id: uuid.UUID
     name: str
@@ -559,3 +501,11 @@ def dev_mailbox() -> list[dict]:
     if not settings.is_development:
         raise APIError(404, "not_found", "Not found.")
     return read_dev_mailbox()
+
+
+@router.get("/dev/push", include_in_schema=False)
+def dev_push() -> list[dict]:
+    """Development only: recent push notifications sent by the log provider."""
+    if not settings.is_development:
+        raise APIError(404, "not_found", "Not found.")
+    return read_dev_pushes()

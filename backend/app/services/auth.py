@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import ACCESS_COOKIE, CSRF_COOKIE, REFRESH_COOKIE
 from app.core.config import settings
 from app.models import AuthSession, Membership, Organisation, User
-from app.schemas.auth import MembershipSummary, MeResponse, UserOut
+from app.schemas.auth import MembershipSummary, MeResponse, TokenPair, UserOut
 from app.security.passwords import hash_password, verify_password
 from app.security.rbac import ROLE_LABELS, Role, permissions_for
 from app.security.tokens import (
@@ -31,24 +31,47 @@ def find_user_by_identifier(db: Session, identifier: str) -> User | None:
     )
 
 
-def start_session(db: Session, user: User, request: Request, response: Response) -> AuthSession:
-    """Create a session, issue tokens as httpOnly cookies and record the sign-in."""
+def start_session(
+    db: Session, user: User, request: Request, response: Response, client: str = "web"
+) -> TokenPair | None:
+    """Create a session and record the sign-in.
+
+    Web sessions get httpOnly cookies. Mobile sessions get the tokens back (for the app's
+    secure storage) and no cookies.
+    """
     refresh_token = new_opaque_token()
     now = datetime.now(UTC)
+    ttl_days = (
+        settings.mobile_refresh_token_ttl_days
+        if client == "mobile"
+        else settings.refresh_token_ttl_days
+    )
     session = AuthSession(
         user_id=user.id,
         refresh_token_hash=hash_token(refresh_token),
-        expires_at=now + timedelta(days=settings.refresh_token_ttl_days),
+        expires_at=now + timedelta(days=ttl_days),
         user_agent=(request.headers.get("user-agent") or "")[:400] or None,
         ip_address=client_ip(request),
+        client=client,
     )
     db.add(session)
     user.last_login_at = now
     user.failed_login_count = 0
     user.locked_until = None
     db.flush()
-    set_auth_cookies(response, create_access_token(user.id, session.id), refresh_token)
-    return session
+    access = create_access_token(user.id, session.id)
+    if client == "mobile":
+        return token_pair(access, refresh_token)
+    set_auth_cookies(response, access, refresh_token)
+    return None
+
+
+def token_pair(access_token: str, refresh_token: str) -> TokenPair:
+    return TokenPair(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.access_token_ttl_minutes * 60,
+    )
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:

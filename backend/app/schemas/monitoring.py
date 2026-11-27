@@ -158,6 +158,7 @@ NotifyLevel = Literal["critical", "high", "medium", "low", "off"]
 class NotificationPreferences(BaseModel):
     email_min_severity: NotifyLevel = "high"
     in_app_min_severity: NotifyLevel = "low"
+    push_min_severity: NotifyLevel = "high"
 
 
 class TrendPoint(BaseModel):

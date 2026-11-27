@@ -38,14 +38,32 @@ class RegisterRequest(BaseModel):
         return v
 
 
+Client = Literal["web", "mobile"]
+
+
 class LoginRequest(BaseModel):
     identifier: str = Field(min_length=1, max_length=320, description="Email or username")
     password: str = Field(min_length=1, max_length=256)
+    # "mobile" returns tokens in the response body for the app's secure storage instead of
+    # setting browser cookies.
+    client: Client = "web"
 
 
 class MFAVerifyRequest(BaseModel):
     mfa_token: str = Field(min_length=1, max_length=2000)
     code: str = Field(min_length=6, max_length=32)
+    client: Client = "web"
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str | None = Field(default=None, max_length=200)
+
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: Literal["bearer"] = "bearer"  # noqa: S105 - a token type name, not a secret
+    expires_in: int
 
 
 class PasswordChangeRequest(BaseModel):
@@ -105,6 +123,12 @@ class LoginResponse(BaseModel):
     status: Literal["ok", "mfa_required"]
     mfa_token: str | None = None
     me: MeResponse | None = None
+    tokens: TokenPair | None = None
+
+
+class RefreshResponse(BaseModel):
+    message: str
+    tokens: TokenPair | None = None
 
 
 class MFASetupResponse(BaseModel):

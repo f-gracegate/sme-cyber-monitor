@@ -57,13 +57,13 @@ operating processes are independently tested.
 | FR-013 | Prioritise risks and display severity | Must | ✅ Phase 2 |
 | FR-014 | Assign remediation tasks | Must | ✅ Phase 5 |
 | FR-015 | Record incident investigations | Must | ✅ Phase 5 |
-| FR-016 | Notify authorised users | Must | ✅ In-app + email (Phase 2); push Phase 6 |
+| FR-016 | Notify authorised users | Must | ✅ In-app + email (Phase 2), push (Phase 6) |
 | FR-017 | Generate management reports | Must | ✅ Phase 5 (PDF/CSV, monthly executive report) |
 | FR-018 | Maintain searchable audit logs | Must | ✅ Milestone 1 |
 | FR-019 | Provide role-based access control | Must | ✅ Milestone 1 |
-| FR-020 | Provide subscriptions and usage limits | Must | ✅ Limits; payments Phase 6 |
-| FR-021 | Mobile push notifications | Should | Phase 6 |
-| FR-022 | Mobile incident management | Should | Phase 6 |
+| FR-020 | Provide subscriptions and usage limits | Must | ✅ Limits, Mobile Money/card payments, renewals (Phase 6) |
+| FR-021 | Mobile push notifications | Should | ✅ Phase 6 |
+| FR-022 | Mobile incident management | Should | ✅ Phase 6 |
 | FR-023 | Integrate third-party security tools | Should | ✅ Wazuh (Phase 3); Suricata, Zeek, firewall syslog (Phase 4) |
 | FR-024 | Automated containment actions | Later | — |
 | FR-025 | Threat intelligence enrichment | Later | — |

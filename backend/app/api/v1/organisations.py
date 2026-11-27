@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import AuthContext, OrgContext, get_auth, org_path_scope
+from app.billing.service import ensure_can_grow
 from app.core.config import settings
 from app.core.db import get_db, set_tenant_context
 from app.core.errors import APIError, forbidden, not_found
@@ -318,6 +319,7 @@ def create_invitation(
     db: Session = Depends(get_db),
 ) -> InvitationCreated:
     rate_limit(f"invite:{ctx.org_id}", limit=50, window_seconds=3600)
+    ensure_can_grow(db, ctx.org_id)
     if not can_assign_role(ctx.role, body.role):
         raise forbidden("Only an owner can invite another owner.")
     email = body.email.lower()

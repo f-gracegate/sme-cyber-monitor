@@ -1,7 +1,7 @@
 from app.models.asset import Asset, AssetAuthorisation
 from app.models.audit import AuditLog
 from app.models.base import Base
-from app.models.billing import Subscription
+from app.models.billing import Payment, PushDevice, Subscription
 from app.models.endpoint import Agent, AgentEnrolmentToken, IntegrationKey, SecurityEvent
 from app.models.incident import (
     Incident,
@@ -54,5 +54,7 @@ __all__ = [
     "PasswordResetToken",
     "RiskScoreSnapshot",
     "Subscription",
+    "Payment",
+    "PushDevice",
     "User",
 ]

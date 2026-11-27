@@ -25,6 +25,11 @@ target. Status reflects Milestone 1.
 | Supply chain | Locked dependencies, CI checks; image scanning and signed agent packages to add | Partial |
 | Ransomware / data loss | Encrypted, immutable backups with tested restore | Before launch |
 | Collector misuse / probing others | Collector only probes server-supplied authorised devices of its own organisation; results for other assets ignored; syslog accepted only from approved ranges; outbound-only | ✅ |
+| Stolen phone or mobile tokens | Tokens in Keychain/Keystore (this device only, not backed up), 15-minute access tokens, rotating refresh with reuse detection, optional biometric lock, sessions revocable from the web; plain HTTP refused except to a developer machine | ✅ |
+| Sensitive data on lock screens / via push providers | Push text limited to severity, organisation and alert title (`PUSH_INCLUDE_DETAILS=false`); details are fetched after sign-in; tokens encrypted at rest; pushes stop when the phone signs out | ✅ |
+| Payment tampering (fake success, wrong amount) | Activation only after a server-side verify with Paystack; amount and currency must match the order; signed webhooks (HMAC-SHA512) re-verified; idempotent under row locks; payments can't be deleted | ✅ |
+| Card or wallet data exposure | Hosted checkout: card numbers and MoMo PINs never reach our servers; only brand/last digits are stored | ✅ |
+| Simulated payments in production | `PAYMENT_PROVIDER=sandbox` refused outside development; sandbox endpoint returns 404 otherwise | ✅ |
 | Client IP spoofing | Trusted-proxy list (`FORWARDED_ALLOW_IPS`); per-account limits don't depend on IP | ✅ Needs correct production proxy |
 
 ## Mandatory security scenarios

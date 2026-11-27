@@ -17,6 +17,14 @@ environment.
 | `FORWARDED_ALLOW_IPS` | Only the reverse proxy / load balancer address(es) |
 | `WEB_BASE_URL` | Public HTTPS URL of the web app (used in emails) |
 | `AGENT_DIST_PATH` | Path to `smecm_agent.py` inside the backend container (copy `agents/` into the image) |
+| `PAYMENT_PROVIDER` | `paystack`. `sandbox` is refused outside development. |
+| `PAYSTACK_SECRET_KEY` | Live secret key from the secret store. It also verifies webhook signatures. Set the webhook URL to `https://<api>/api/v1/billing/webhooks/paystack`. |
+| `BILLING_GRACE_DAYS`, `ANNUAL_MONTHS_CHARGED` | Defaults 7 and 10 |
+| `BILLING_CONTACT_EMAIL` | Where Enterprise enquiries go |
+| `PUSH_PROVIDER` | `fcm` in production (`log` keeps pushes in the development outbox) |
+| `FCM_SERVICE_ACCOUNT_FILE`, `FCM_PROJECT_ID` | Firebase service-account key (mounted as a secret file) and project |
+| `PUSH_INCLUDE_DETAILS` | Leave `false` so lock screens show only severity and title |
+| `MOBILE_REFRESH_TOKEN_TTL_DAYS` | Default 30 |
 
 API docs (`/api/docs`) and the developer mailbox are disabled outside development.
 

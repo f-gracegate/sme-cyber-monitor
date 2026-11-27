@@ -602,7 +602,9 @@ def get_preferences(
     if pref is None:
         return NotificationPreferences()
     return NotificationPreferences(
-        email_min_severity=pref.email_min_severity, in_app_min_severity=pref.in_app_min_severity
+        email_min_severity=pref.email_min_severity,
+        in_app_min_severity=pref.in_app_min_severity,
+        push_min_severity=pref.push_min_severity,
     )
 
 
@@ -618,5 +620,6 @@ def set_preferences(
         db.add(pref)
     pref.email_min_severity = body.email_min_severity
     pref.in_app_min_severity = body.in_app_min_severity
+    pref.push_min_severity = body.push_min_severity
     db.commit()
     return body
