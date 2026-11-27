@@ -15,6 +15,13 @@ const nextConfig: NextConfig = {
   // A self-contained server bundle for the production image (apps/web/Dockerfile).
   output: "standalone",
   cacheComponents: true,
+  experimental: {
+    // The signed-in workspace is rendered in the browser after the session check (see
+    // app/(app)/layout.tsx), so its pages can't be part of a prerendered shell and every one
+    // of them would be reported as "could not validate instant navigation". Validate only the
+    // segments that opt in with `export const instant = true`.
+    instantInsights: { validationLevel: "manual-warning" },
+  },
   partialPrefetching: true,
   poweredByHeader: false,
   turbopack: {
